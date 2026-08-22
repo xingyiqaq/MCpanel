@@ -52,9 +52,21 @@ with open('$PANEL_DIR/config.yaml') as f:
     c = yaml.safe_load(f)
 port = c.get('server', {}).get('port', 8690)
 name = c.get('server', {}).get('name', 'MC Server')
+sdir = c.get('server_dir', '')
 print(f'PANEL_PORT={port}')
 print(f'SERVER_NAME={name}')
 ")
+# 如果 config.yaml 未配置 server_dir，自动写入实际路径
+python3 -c "
+import yaml
+with open('$PANEL_DIR/config.yaml') as f:
+    c = yaml.safe_load(f)
+if not c.get('server_dir'):
+    c['server_dir'] = '$SERVER_DIR'
+    with open('$PANEL_DIR/config.yaml', 'w') as f:
+        yaml.dump(c, f, allow_unicode=True, default_flow_style=False)
+    print('  \u2705 已自动写入 server_dir 到 config.yaml')
+" 2>/dev/null
 
 # ===== --stop 模式：只关闭面板 =====
 if [ "$1" = "--stop" ]; then

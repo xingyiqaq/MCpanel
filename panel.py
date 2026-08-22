@@ -173,6 +173,17 @@ def rcon_command(cmd):
     with _rcon_lock:
         try: return get_rcon().command(cmd)
         except Exception: _rcon_client=None; return '❌ RCON 连接失败'
+
+def _test_rcon():
+    """用单例客户端测试 RCON 连通性，成功则保持连接不关闭"""
+    global _rcon_client
+    with _rcon_lock:
+        try:
+            get_rcon().command('list')
+            return True
+        except Exception:
+            _rcon_client = None
+            return False
 if MODE in('rcon','auto'):
     def _hb():
         while True:
@@ -503,31 +514,26 @@ def _sync_rcon_password():
 def _recover_rcon():
     """检测 RCON 连通性，失败则自动恢复默认配置
 
-    注意: 如果 MC 服务端未启动，RCON 连接必然失败。
-    此时如果已从 server.properties 同步了密码，保留它（服务端启动后生效）。
-    只有完全无密码时才生成新密码。
+    使用单例客户端（保持连接不关闭），避免频繁开/关连接导致日志刷屏。
     """
     global RCON_PASSWORD, RCON_PORT
     print(f'🔍 检测 RCON 连通性 ({RCON_HOST}:{RCON_PORT})...')
-    test_rcon = RCON(RCON_HOST, RCON_PORT, RCON_PASSWORD)
-    try:
-        test_rcon.connect()
-        resp = test_rcon.command('list')
-        test_rcon.close()
+
+    # 使用单例客户端测试，成功则保持连接
+    if _test_rcon():
         print(f'  ✅ RCON 连接正常 (密码: {RCON_PASSWORD[:4]}****)')
         return True
-    except Exception:
-        pass
+
     print(f'  ❌ RCON 连接失败（服务端可能未启动）')
 
     # 尝试常见默认密码（仅当当前密码为空时才尝试）
     if not RCON_PASSWORD:
         for trial in ['1', '1234', '']:
-            test_rcon2 = RCON(RCON_HOST, RCON_PORT, trial)
+            test_rcon = RCON(RCON_HOST, RCON_PORT, trial)
             try:
-                test_rcon2.connect()
-                resp = test_rcon2.command('list')
-                test_rcon2.close()
+                test_rcon.connect()
+                resp = test_rcon.command('list')
+                test_rcon.close()
                 CONFIG.setdefault('rcon', {})['password'] = trial
                 _save_config()
                 props = _read_props()
@@ -538,7 +544,7 @@ def _recover_rcon():
                 print(f'  ✅ 已恢复 RCON 密码为: {trial}')
                 return True
             except Exception:
-                try: test_rcon2.close()
+                try: test_rcon.close()
                 except: pass
 
     # 如果已有密码（从 server.properties 同步的），保留它

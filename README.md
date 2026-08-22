@@ -104,9 +104,11 @@ MCpanel/
 
 ## 📄 License
 
-MIT License
+本项目采用 **非商用许可**。
+未经允许，不得用于任何商业用途。如需商用授权，请联系作者。
+
+> 未经书面许可，本软件不得以任何形式用于营利性项目、付费服务或商业分发。
 
 ---
 
-[![GitHub](https://img.shields.io/github/license/xingyiqaq/MCpanel)](https://github.com/xingyiqaq/MCpanel)
 [![GitHub stars](https://img.shields.io/github/stars/xingyiqaq/MCpanel)](https://github.com/xingyiqaq/MCpanel)

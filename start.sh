@@ -29,12 +29,20 @@ PANEL_PID_FILE="$SERVER_DIR/mc-panel.pid"
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; NC='\033[0m'
 
-# ===== 检查依赖 =====
-if ! command -v python3 &>/dev/null; then echo -e "${RED}❌ 未找到 python3${NC}"; exit 1; fi
-python3 -c "import yaml" 2>/dev/null || {
-    echo -e "${YELLOW}⚠️  安装 PyYAML...${NC}"
-    pip3 install pyyaml -q 2>/dev/null || { echo -e "${RED}❌ 请安装 PyYAML: pip3 install pyyaml${NC}"; exit 1; }
-}
+# ===== 自动检测并安装依赖 =====
+INSTALL_SCRIPT="$SCRIPT_DIR/setup/install_deps.sh"
+if [ -f "$INSTALL_SCRIPT" ]; then
+    bash "$INSTALL_SCRIPT" || { echo -e "${RED}❌ 依赖安装失败${NC}"; exit 1; }
+else
+    if ! command -v python3 &>/dev/null; then
+        echo -e "${RED}❌ 未找到 python3，请安装 Python 3.8+${NC}"
+        exit 1
+    fi
+    python3 -c "import yaml" 2>/dev/null || {
+        echo -e "${YELLOW}⚠️  安装 PyYAML...${NC}"
+        pip3 install pyyaml -q 2>/dev/null || { echo -e "${RED}❌ 请安装 PyYAML: pip3 install pyyaml${NC}"; exit 1; }
+    }
+fi
 
 # ===== 读取配置 =====
 [ ! -f "$PANEL_DIR/config.yaml" ] && { echo -e "${RED}❌ 未找到: $PANEL_DIR/config.yaml${NC}"; exit 1; }

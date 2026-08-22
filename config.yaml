@@ -1,0 +1,18 @@
+auth:
+  must_change: false
+  password_hash: 19ed782e4a00f178f79c961ddc4b8e012d459d536b1421082eb35448e2f5ac26719e86ff1cecc620eb8caf009b5e64c9
+  username: admin
+java_process_keyword: unix_args.txt
+lang_zh_file: cache/lang_zh_all.json
+log_path: logs/latest.log
+mode: auto
+rcon:
+  host: 127.0.0.1
+  password: '1'
+  port: 25575
+server:
+  host: 0.0.0.0
+  name: 我的世界服务器
+  port: 19888
+server_dir: /home/xingyi/MC/AFoP_Server_Continue_1.8.8_Linux
+wallpaper_dir: wallpapers

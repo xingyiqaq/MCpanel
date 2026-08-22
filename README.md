@@ -17,6 +17,8 @@
 | 🎨 壁纸背景 | 随机壁纸 + 动态粒子效果 |
 | 🔐 登录认证 | 首次强制修改密码，可自定义用户名/密码 |
 | ⚙️ 游戏配置 | 在线编辑 `server.properties` |
+| 🎛️ 面板设置 | 面板端口/标题/RCON/模式等配置，修改立即生效 |
+| 🔑 RCON 自动检测 | 启动时自动从 `server.properties` 检测/生成 RCON 密码 |
 
 ## 🚀 快速开始
 
@@ -29,34 +31,38 @@ cd MCpanel
 
 ### 2. 配置
 
-编辑 `config.yaml`：
+编辑 `config.yaml`（首次可跳过，自动检测）：
 
 ```yaml
 server:
-  port: 8690              # 面板端口
-  name: "我的世界服务器"   # 显示名称
+  host: "0.0.0.0"       # 监听地址
+  port: 19888            # 面板端口
+  name: "我的世界服务器"   # 面板标题
 
 rcon:
   host: "127.0.0.1"
   port: 25575
-  password: "你的RCON密码"
+  # password: "留空则自动检测"  # 不填则自动从 server.properties 读取
 
-mode: "auto"             # rcon / pipe / auto
+mode: "auto"             # auto / rcon / pipe
 ```
 
-> **注意**：RCON 模式需要在 `server.properties` 中开启 `rcon.enabled=true`。
+> **RCON 自动检测**：`rcon.password` 留空或注释，面板启动时会自动从 `server.properties` 读取密码；如果两边都没有，自动生成随机密码写入两边。
 
 ### 3. 一键启动（自动安装依赖）
 
 ```bash
-bash start.sh
+bash start.sh                    # 只开面板
+bash start.sh --server           # 面板 + MC 服务器
+bash start.sh --stop             # 停止面板
 ```
 
 首次启动会自动完成以下步骤：
 1. **检测 Python** — 若未安装，自动通过 apt/yum/dnf/pacman 安装
 2. **检测 PyYAML** — 若未安装，优先从 `setup/wheels/` 离线安装（支持 Python 3.8~3.14）
-3. **扫描 jar 包** — 自动提取物品/实体/附魔中文名称
-4. **启动面板** — 浏览器访问 `http://<服务器IP>:8690`
+3. **自动写入 server_dir** — 自动检测服务器根目录并写入 config.yaml
+4. **扫描 jar 包** — 自动提取物品/实体/附魔中文名称
+5. **启动面板** — 浏览器访问 `http://<服务器IP>:<端口>`
 
 默认账号 `admin` / `admin`，首次登录须修改密码。
 
@@ -67,7 +73,7 @@ MCpanel/
 ├── panel.py              # 主程序：Web 服务器 + RCON/管道通信
 ├── discover.py           # 物品/实体/附魔中文名称自动扫描
 ├── start.sh              # 一键启动脚本（含自动安装依赖）
-├── config.yaml           # 配置文件
+├── config.yaml           # 配置文件（运行时生成，含密码，不提交 Git）
 ├── login.html            # 登录页面
 ├── static/
 │   └── index.html        # 主界面（单文件，HTML+CSS+JS）
@@ -75,6 +81,7 @@ MCpanel/
 │   ├── install_deps.sh   # 依赖检测与安装脚本
 │   └── wheels/           # PyYAML wheel（支持 Python 3.8~3.14）
 ├── wallpapers/           # 壁纸图片目录
+├── .gitignore            # Git 忽略规则
 └── README.md
 ```
 
@@ -86,34 +93,14 @@ MCpanel/
 | **rcon** | 通过 RCON 协议双向通信 | RCON 已开启的服务器 |
 | **pipe** | 通过 stdin 写入命令，日志读取输出 | 无 RCON 权限的服务器 |
 
-## ⚙️ 配置项
+## 🎛️ 面板设置说明
 
-```yaml
-server:
-  host: "0.0.0.0"       # 监听地址
-  port: 8690             # 面板端口
-  name: "MC Server"      # 面板标题
+在 **配置** tab 下可配置面板自身参数（修改后点击保存，重启生效）：
 
-server_dir: "."          # 服务器根目录（相对 start.sh）
-
-rcon:
-  host: "127.0.0.1"
-  port: 25575
-  password: "1"
-
-mode: "auto"
-
-java_process_keyword: "unix_args.txt"   # Java 进程识别关键词
-log_path: "logs/latest.log"             # 日志路径
-wallpaper_dir: "wallpapers"             # 壁纸目录
-lang_zh_file: "cache/lang_zh_all.json"  # 中文翻译表
-```
-
-## 🛠️ 技术栈
-
-- **后端**：Python 3.8+，标准库 `http.server`（零依赖）
-- **前端**：纯 HTML + CSS + JavaScript，单文件无框架
-- **依赖**：仅需 `PyYAML`（`pip3 install pyyaml`）
+- **面板标题 / 端口 / 监听地址** — 基本显示设置
+- **连接模式** — auto / rcon / pipe
+- **RCON 地址 / 端口 / 密码** — 实时检测端口占用和密码一致性
+- **服务器目录** — 可在线修改（路径检测）
 
 ## 📄 License
 

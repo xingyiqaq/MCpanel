@@ -1093,7 +1093,6 @@ async function loadConfig(){
   try{
     var r=await fetch('/api/config');
     var d=await r.json();
-    if(cfgRaw===d.config) return;
     cfgRaw=d.config;
     cfgDefs=d.definitions||[];
     renderGameConfig();
@@ -1103,7 +1102,6 @@ async function loadConfig(){
   try{
     var r2=await fetch('/api/panel_config');
     var d2=await r2.json();
-    if(panelCfg&&JSON.stringify(panelCfg)===JSON.stringify(d2)) return;
     panelCfg=d2;
     renderPanelConfig();
   }catch(e){}

@@ -105,6 +105,22 @@ for i in $(seq 1 10); do
         # 尝试获取 IP
         IP=$(ip -4 addr show | grep -oP 'inet \K[\d.]+' | grep -v '127.0.0.1' | head -1)
         [ -n "$IP" ] && echo -e "   ${CYAN}局域网: http://${IP}:${PANEL_PORT}${NC}"
+        # 显示 RCON 状态
+        echo ""
+        python3 -c "
+import yaml, os
+with open('$PANEL_DIR/config.yaml') as f:
+    c = yaml.safe_load(f)
+r = c.get('rcon', {})
+host = r.get('host', '127.0.0.1')
+port = r.get('port', 25575)
+pwd = r.get('password', '')
+if pwd:
+    print(f'   🔑 RCON: {host}:{port} (密码已配置)')
+else:
+    print(f'   🔑 RCON: {host}:{port} (自动检测)')
+print(f'   📡 模式: {c.get(\"mode\", \"auto\")}')
+" 2>/dev/null
         break
     fi
     if [ $i -eq 10 ]; then

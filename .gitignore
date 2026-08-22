@@ -3,3 +3,9 @@ __pycache__/
 *.pyo
 *.log
 cache/
+# 运行时生成的文件（含密码等敏感信息，不提交）
+server.properties
+player_stats.json
+# 面板 PID 文件
+mc-panel.pid
+mc-server.pid

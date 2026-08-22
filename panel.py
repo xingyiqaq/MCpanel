@@ -457,27 +457,38 @@ def _save_config():
         print(f'⚠️ 保存 config.yaml 失败: {e}')
 
 def _sync_rcon_password():
-    """自动检测/生成 RCON 密码并同步 config.yaml ↔ server.properties"""
+    """自动检测/生成 RCON 密码并同步 config.yaml ↔ server.properties
+
+    优先级:
+      1. server.properties 已有 rcon.password → 同步到 config.yaml
+      2. config.yaml 已有 password → 写入 server.properties
+      3. 两者都没有 → 生成随机密码写入两边
+    返回: 当前使用的 RCON 密码
+    """
     r = CONFIG.get('rcon', {})
-    cfg_pass = str(r.get('password', ''))
+    cfg_pass = str(r.get('password', '')).strip()
     props = _read_props()
-    props_pass = str(props.get('rcon.password', ''))
+    props_pass = str(props.get('rcon.password', '')).strip()
 
     if props_pass:
+        # 场景1: server.properties 已有 RCON 密码
         if cfg_pass != props_pass:
             r['password'] = props_pass
             CONFIG['rcon'] = r
             _save_config()
-            print(f'  🔑 检测到 RCON 密码已配置 → 已同步到 config.yaml')
-            return props_pass
+            print(f'  🔑 从 server.properties 检测到 RCON 密码 → 已同步到 config.yaml')
+        else:
+            print(f'  🔑 RCON 密码已一致')
         return props_pass
     elif cfg_pass:
+        # 场景2: config.yaml 有密码，server.properties 没有
         props['rcon.password'] = cfg_pass
         props['enable-rcon'] = 'true'
         _write_props(props)
-        print(f'  🔑 面板密码已同步 → 已写入 server.properties')
+        print(f'  🔑 config.yaml 密码已写入 server.properties (enable-rcon=true)')
         return cfg_pass
     else:
+        # 场景3: 两者都无密码，生成新的
         new_pass = _gen_rcon_password()
         r['password'] = new_pass
         CONFIG['rcon'] = r
@@ -485,14 +496,19 @@ def _sync_rcon_password():
         props['rcon.password'] = new_pass
         props['enable-rcon'] = 'true'
         _write_props(props)
-        print(f'  🔑 RCON 未配置，已自动生成密码')
+        print(f'  🔑 RCON 未配置，已自动生成随机密码并写入两边')
         return new_pass
 
 # === RCON 自动恢复 ===
 def _recover_rcon():
-    """检测 RCON 连通性，失败则自动恢复默认配置"""
+    """检测 RCON 连通性，失败则自动恢复默认配置
+
+    注意: 如果 MC 服务端未启动，RCON 连接必然失败。
+    此时如果已从 server.properties 同步了密码，保留它（服务端启动后生效）。
+    只有完全无密码时才生成新密码。
+    """
     global RCON_PASSWORD, RCON_PORT
-    print(f'🔍 检测 RCON 连通性...')
+    print(f'🔍 检测 RCON 连通性 ({RCON_HOST}:{RCON_PORT})...')
     test_rcon = RCON(RCON_HOST, RCON_PORT, RCON_PASSWORD)
     try:
         test_rcon.connect()
@@ -502,43 +518,50 @@ def _recover_rcon():
         return True
     except Exception:
         pass
-    print(f'  ❌ RCON 连接失败，开始自动恢复...')
+    print(f'  ❌ RCON 连接失败（服务端可能未启动）')
 
-    # 尝试常见默认密码
-    for trial in ['1', '1234', '']:
-        test_rcon2 = RCON(RCON_HOST, RCON_PORT, trial)
-        try:
-            test_rcon2.connect()
-            resp = test_rcon2.command('list')
-            test_rcon2.close()
-            CONFIG.setdefault('rcon', {})['password'] = trial
-            _save_config()
-            props = _read_props()
-            props['rcon.password'] = trial
-            _write_props(props)
-            RCON_PASSWORD = trial
-            RCON_PORT = CONFIG.get('rcon', {}).get('port', 25575)
-            print(f'  ✅ 已恢复 RCON 密码为: {trial}')
-            return True
-        except Exception:
-            try: test_rcon2.close()
-            except: pass
+    # 尝试常见默认密码（仅当当前密码为空时才尝试）
+    if not RCON_PASSWORD:
+        for trial in ['1', '1234', '']:
+            test_rcon2 = RCON(RCON_HOST, RCON_PORT, trial)
+            try:
+                test_rcon2.connect()
+                resp = test_rcon2.command('list')
+                test_rcon2.close()
+                CONFIG.setdefault('rcon', {})['password'] = trial
+                _save_config()
+                props = _read_props()
+                props['rcon.password'] = trial
+                _write_props(props)
+                RCON_PASSWORD = trial
+                RCON_PORT = CONFIG.get('rcon', {}).get('port', 25575)
+                print(f'  ✅ 已恢复 RCON 密码为: {trial}')
+                return True
+            except Exception:
+                try: test_rcon2.close()
+                except: pass
 
-    # 生成全新密码，恢复默认端口
+    # 如果已有密码（从 server.properties 同步的），保留它
+    if RCON_PASSWORD:
+        print(f'  📋 已从 server.properties 同步密码，等待服务端启动后生效')
+        return True
+
+    # 完全没有密码，生成新的
     new_pass = _gen_rcon_password()
     CONFIG.setdefault('rcon', {})['password'] = new_pass
     CONFIG.setdefault('rcon', {})['port'] = 25575
     _save_config()
     props = _read_props()
     props['rcon.password'] = new_pass
-    props['rcon.port'] = '25575'
+    # 不覆盖已有的 rcon.port
+    if not str(props.get('rcon.port', '')).strip():
+        props['rcon.port'] = '25575'
     _write_props(props)
     RCON_PASSWORD = new_pass
     RCON_PORT = 25575
-    print(f'  ⚠️  RCON 恢复失败，已生成新密码并恢复默认端口 25575')
-    print(f'  🔑 新密码: {new_pass}')
-    print(f'  📁 已写入 config.yaml 和 server.properties')
-    print(f'  ⚠️  请重启 MC 服务器后重试！')
+    print(f'  🔑 RCON 未配置，已生成随机密码')
+    print(f'  🔑 密码: {new_pass}')
+    print(f'  ⚠️  请在服务端启动后重启面板，RCON 即可生效')
     return False
 
 # === 启动时自动恢复 ===

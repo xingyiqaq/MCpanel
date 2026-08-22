@@ -1,6 +1,6 @@
 # 🎮 MCpanel — Minecraft 服务器 Web 管理面板
 
-> 一个开源的、支持全量物品/实体中文显示的 Minecraft 服务器 Web 管理面板。适用于原版 + 模组服务器，即配置即用。
+> 一个开源的 Minecraft 服务器 Web 管理面板，支持全量物品/实体中文显示，适用于原版 + 模组服务器。
 
 ## ✨ 功能一览
 
@@ -12,22 +12,19 @@
 | 🧩 指令生成器 | 图形化生成 `give`/`summon`/`enchant` 等复杂指令 |
 | 📋 实时日志 | 自动刷新服务器日志 |
 | 👤 玩家统计 | 在线时长排行 |
-| 📦 全量物品选择 | 4200+ 物品，含中文分类、搜索，支持模组自动加载 |
-| 👾 全量实体选择 | 177+ 实体，按命名空间分类 |
+| 📦 全量物品选择 | 支持中文分类、搜索，自动加载模组物品 |
+| 👾 全量实体选择 | 按命名空间分类，支持搜索 |
 | 🎨 壁纸背景 | 随机壁纸 + 动态粒子效果 |
 | 🔐 登录认证 | 首次强制修改密码，可自定义用户名/密码 |
-| ⚙️ 游戏配置 | 在线编辑 `server.properties` 等配置 |
+| ⚙️ 游戏配置 | 在线编辑 `server.properties` |
 
 ## 🚀 快速开始
 
-### 1. 部署
-
-将项目复制（或拉取）到服务器目录：
+### 1. 克隆项目
 
 ```bash
-cd /path/to/mc-server
-git clone https://github.com/xingyiqaq/MCpanel.git mc-web
-cd mc-web
+git clone https://github.com/xingyiqaq/MCpanel.git
+cd MCpanel
 ```
 
 ### 2. 配置
@@ -55,7 +52,7 @@ mode: "auto"             # rcon / pipe / auto
 bash start.sh
 ```
 
-首次启动会自动扫描所有 jar 包，提取物品/实体/附魔的中文名称。后续 jar 包未变时直接跳过扫描。
+首次启动会自动扫描所有 jar 包，提取物品/实体/附魔的中文名称。后续 jar 包未变时跳过扫描。
 
 打开浏览器访问 `http://<服务器IP>:8690`，默认账号 `admin` / `admin`，首次登录须修改密码。
 
@@ -63,18 +60,15 @@ bash start.sh
 
 ```
 MCpanel/
-├── panel.py          # 主程序：Web 服务器 + RCON/管道通信
-├── discover.py       # 物品/实体/附魔中文名称自动扫描
-├── start.sh          # 一键启动脚本（含自动扫描）
-├── config.yaml       # 配置文件
-├── login.html        # 登录页面
+├── panel.py            # 主程序：Web 服务器 + RCON/管道通信
+├── discover.py         # 物品/实体/附魔中文名称自动扫描
+├── start.sh            # 一键启动脚本（含自动扫描）
+├── config.yaml         # 配置文件
+├── login.html          # 登录页面
 ├── static/
-│   └── index.html    # 主界面（HTML+CSS+JS 单文件）
-├── cache/            # 缓存（自动生成的物品/实体/翻译表）
-│   ├── items.json
-│   ├── entities.json
-│   └── lang_zh_all.json
-└── wallpapers/       # 壁纸目录
+│   └── index.html      # 主界面（单文件，HTML+CSS+JS）
+├── wallpapers/         # 壁纸图片目录
+└── README.md
 ```
 
 ## 🔄 通信模式
@@ -85,7 +79,7 @@ MCpanel/
 | **rcon** | 通过 RCON 协议双向通信 | RCON 已开启的服务器 |
 | **pipe** | 通过 stdin 写入命令，日志读取输出 | 无 RCON 权限的服务器 |
 
-## ⚙️ 配置项详解
+## ⚙️ 配置项
 
 ```yaml
 server:
@@ -104,7 +98,7 @@ mode: "auto"
 
 java_process_keyword: "unix_args.txt"   # Java 进程识别关键词
 log_path: "logs/latest.log"             # 日志路径
-wallpaper_dir: ""                       # 壁纸目录（可选）
+wallpaper_dir: "wallpapers"             # 壁纸目录
 lang_zh_file: "cache/lang_zh_all.json"  # 中文翻译表
 ```
 
@@ -113,11 +107,10 @@ lang_zh_file: "cache/lang_zh_all.json"  # 中文翻译表
 - **后端**：Python 3.8+，标准库 `http.server`（零依赖）
 - **前端**：纯 HTML + CSS + JavaScript，单文件无框架
 - **依赖**：仅需 `PyYAML`（`pip3 install pyyaml`）
-- **物品/实体数据**：首次运行时自动扫描 jar 包生成
 
 ## 📄 License
 
-MIT License — 自由使用、修改、分发
+MIT License
 
 ---
 

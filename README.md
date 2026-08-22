@@ -46,28 +46,35 @@ mode: "auto"             # rcon / pipe / auto
 
 > **注意**：RCON 模式需要在 `server.properties` 中开启 `rcon.enabled=true`。
 
-### 3. 启动
+### 3. 一键启动（自动安装依赖）
 
 ```bash
 bash start.sh
 ```
 
-首次启动会自动扫描所有 jar 包，提取物品/实体/附魔的中文名称。后续 jar 包未变时跳过扫描。
+首次启动会自动完成以下步骤：
+1. **检测 Python** — 若未安装，自动通过 apt/yum/dnf/pacman 安装
+2. **检测 PyYAML** — 若未安装，优先从 `setup/wheels/` 离线安装（支持 Python 3.8~3.14）
+3. **扫描 jar 包** — 自动提取物品/实体/附魔中文名称
+4. **启动面板** — 浏览器访问 `http://<服务器IP>:8690`
 
-打开浏览器访问 `http://<服务器IP>:8690`，默认账号 `admin` / `admin`，首次登录须修改密码。
+默认账号 `admin` / `admin`，首次登录须修改密码。
 
 ## 📂 项目结构
 
 ```
 MCpanel/
-├── panel.py            # 主程序：Web 服务器 + RCON/管道通信
-├── discover.py         # 物品/实体/附魔中文名称自动扫描
-├── start.sh            # 一键启动脚本（含自动扫描）
-├── config.yaml         # 配置文件
-├── login.html          # 登录页面
+├── panel.py              # 主程序：Web 服务器 + RCON/管道通信
+├── discover.py           # 物品/实体/附魔中文名称自动扫描
+├── start.sh              # 一键启动脚本（含自动安装依赖）
+├── config.yaml           # 配置文件
+├── login.html            # 登录页面
 ├── static/
-│   └── index.html      # 主界面（单文件，HTML+CSS+JS）
-├── wallpapers/         # 壁纸图片目录
+│   └── index.html        # 主界面（单文件，HTML+CSS+JS）
+├── setup/                # 离线安装包
+│   ├── install_deps.sh   # 依赖检测与安装脚本
+│   └── wheels/           # PyYAML wheel（支持 Python 3.8~3.14）
+├── wallpapers/           # 壁纸图片目录
 └── README.md
 ```
 

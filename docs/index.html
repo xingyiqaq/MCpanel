@@ -491,7 +491,13 @@ function toast(msg,t){var e=document.getElementById('toast');e.textContent=msg;e
 var logTimer=null,curTab='dashboard';
 function tab(name){curTab=name;var tabs=document.querySelectorAll('.tab');for(var i=0;i<tabs.length;i++)tabs[i].classList.remove('active');var btns=document.querySelectorAll('.nav button');for(var j=0;j<btns.length;j++)btns[j].classList.remove('active');var target=document.getElementById('tab-'+name);if(target)target.classList.add('active');var btn=document.querySelector('.nav button[data-tab="'+name+'"]');if(btn)btn.classList.add('active');if(name==='console'){startConsoleLog();if(!logTimer){logTimer=setInterval(pollLogs,5000);pollLogs()}}else{if(logTimer){clearInterval(logTimer);logTimer=null}}}
 var wpList=window.wpList||[];var wallpaperIdx=0;
-async function loadWallpaper(){try{if(!wpList){var r=await fetch('/api/wallpapers');var d=await r.json();wpList=d.wallpapers||[]}if(wpList.length){wallpaperIdx=wallpaperIdx%wpList.length;document.getElementById('bg-wallpaper').src='/wp/'+wallpaperIdx;wallpaperIdx++}}catch(e){}}
+async function loadWallpaper(){try{
+  if(!wpList.length){var r=await fetch('/api/wallpapers');var d=await r.json();wpList=d.wallpapers||[]}
+  var img=document.getElementById('bg-wallpaper');
+  // 演示模式：如果已有壁纸设置（mock.js已注入），不覆盖
+  if(img&&img.src&&img.src.indexOf('data:')===0)return;
+  if(wpList.length){wallpaperIdx=wallpaperIdx%wpList.length;img.src='/wp/'+wallpaperIdx;wallpaperIdx++}
+}catch(e){}}
 setInterval(loadWallpaper,30000);loadWallpaper();
 async function loadStatus(){try{var r=await fetch('/api/status');var d=await r.json();document.getElementById('v-tps').textContent=d.tps!=null?d.tps.toFixed(1):'--';document.getElementById('v-players').textContent=d.playerCount;document.getElementById('v-mem').textContent=d.memoryUsed?(parseInt(d.memoryUsed)/1024/1024).toFixed(1)+' GB':'--';document.getElementById('v-time').textContent=d.timestamp;var pl=document.getElementById('pl-list');if(d.players&&d.players.length){pl.innerHTML='';for(var i=0;i<d.players.length;i++){var sp=document.createElement('span');sp.className='player-tag';sp.textContent='👤 '+d.players[i];pl.appendChild(sp)}}else{pl.innerHTML='<span class="no-players">暂无玩家</span>'}var pi=document.getElementById('proc-info');if(d.pids&&d.pids.length){pi.innerHTML='';for(var k=0;k<d.pids.length;k++){var sp2=document.createElement('span');sp2.style.color='var(--success)';sp2.textContent='PID: '+d.pids[k]+'  ';pi.appendChild(sp2)}}else{pi.innerHTML='<span style="color:var(--danger)">未找到进程</span>'}}catch(e){}}
 setInterval(loadStatus,5000);loadStatus();

@@ -2,6 +2,14 @@
 
 > 一个开源的 Minecraft 服务器 Web 管理面板，支持全量物品/实体中文显示，适用于原版 + 模组服务器。
 
+## 🌐 在线演示
+
+无需安装即可体验全部功能，数据均为模拟数据，仅供功能展示：
+
+👉 **[https://xingyiqaq.github.io/MCpanel/](https://xingyiqaq.github.io/MCpanel/)**
+
+演示模式默认已登录（用户名 `admin`），无需认证。
+
 ## ✨ 功能一览
 
 | 功能 | 说明 |
@@ -22,11 +30,13 @@
 
 ## 🚀 快速开始
 
-### 1. 克隆项目
+### 1. 下载必要文件
 
 ```bash
-git clone https://github.com/xingyiqaq/MCpanel.git
-cd MCpanel
+mkdir -p mcpanel/static && cd mcpanel
+wget https://raw.githubusercontent.com/xingyiqaq/MCpanel/main/panel.py
+wget https://raw.githubusercontent.com/xingyiqaq/MCpanel/main/config.yaml
+wget -O static/index.html https://raw.githubusercontent.com/xingyiqaq/MCpanel/main/static/index.html
 ```
 
 ### 2. 配置
@@ -42,54 +52,31 @@ server:
 rcon:
   host: "127.0.0.1"
   port: 25575
-  # password: "留空则自动检测"  # 不填则自动从 server.properties 读取
+  # password: "留空则自动检测"
 
 mode: "auto"             # auto / rcon / pipe
 ```
 
 > **RCON 自动检测**：`rcon.password` 留空或注释，面板启动时会自动从 `server.properties` 读取密码；如果两边都没有，自动生成随机密码写入两边。
 
-## 🌐 在线演示
-
-无需安装即可体验面板全部功能，数据均为模拟数据，仅供功能展示：
-
-👉 **[https://xingyiqaq.github.io/MCpanel/](https://xingyiqaq.github.io/MCpanel/)**
-
-演示模式默认已登录（用户名 `admin`），无需认证。
-
-### 3. 一键启动（自动安装依赖）
+### 3. 启动
 
 ```bash
-bash start.sh                    # 只开面板
-bash start.sh --server           # 面板 + MC 服务器
-bash start.sh --stop             # 停止面板
+python3 panel.py
 ```
 
-首次启动会自动完成以下步骤：
-1. **检测 Python** — 若未安装，自动通过 apt/yum/dnf/pacman 安装
-2. **检测 PyYAML** — 若未安装，优先从 `setup/wheels/` 离线安装（支持 Python 3.8~3.14）
-3. **自动写入 server_dir** — 自动检测服务器根目录并写入 config.yaml
-4. **扫描 jar 包** — 自动提取物品/实体/附魔中文名称
-5. **启动面板** — 浏览器访问 `http://<服务器IP>:<端口>`
+浏览器访问 `http://<服务器IP>:19888`。默认账号 `admin` / `admin`，首次登录须修改密码。
 
-默认账号 `admin` / `admin`，首次登录须修改密码。
+> 自动完成：安装依赖 → 扫描物品 → 检测配置 → 启动面板。
 
 ## 📂 项目结构
 
 ```
 MCpanel/
 ├── panel.py              # 主程序：Web 服务器 + RCON/管道通信
-├── discover.py           # 物品/实体/附魔中文名称自动扫描
-├── start.sh              # 一键启动脚本（含自动安装依赖）
-├── config.yaml           # 配置文件（运行时生成，含密码，不提交 Git）
-├── login.html            # 登录页面
+├── config.yaml           # 配置文件
 ├── static/
 │   └── index.html        # 主界面（单文件，HTML+CSS+JS）
-├── setup/                # 离线安装包
-│   ├── install_deps.sh   # 依赖检测与安装脚本
-│   └── wheels/           # PyYAML wheel（支持 Python 3.8~3.14）
-├── wallpapers/           # 壁纸图片目录
-├── .gitignore            # Git 忽略规则
 └── README.md
 ```
 
@@ -114,8 +101,6 @@ MCpanel/
 
 本项目采用 **非商用许可**。
 未经允许，不得用于任何商业用途。如需商用授权，请联系作者。
-
-> 未经书面许可，本软件不得以任何形式用于营利性项目、付费服务或商业分发。
 
 ---
 

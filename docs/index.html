@@ -1,0 +1,1392 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MC 服务端管理面板</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--glass-bg:rgba(15,15,25,0.55);--glass-border:rgba(255,255,255,0.08);--glass-hover:rgba(255,255,255,0.12);--accent:#6c5ce7;--accent2:#a29bfe;--danger:#ff4757;--success:#00d2d3;--warning:#ffa502;--text:#f0f0f0;--text2:#b0b0b0;--font-mono:'JetBrains Mono',Consolas,monospace}
+html,body{height:100%;font-family:-apple-system,sans-serif;color:var(--text);overflow:hidden}
+body{background:#0a0a12}
+#bg-wallpaper{position:fixed;top:0;left:0;width:100%;height:100%;object-fit:cover;opacity:0.5;transition:opacity 1.5s ease;z-index:0}
+#bg-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,rgba(10,10,20,0.6) 0%,rgba(15,10,30,0.4) 50%,rgba(10,15,25,0.7) 100%);z-index:1}
+.app{position:relative;z-index:2;height:100vh;display:flex;flex-direction:column;margin-top:30px}
+header{padding:0;display:flex;flex-direction:column;gap:12px}
+.header-title{display:flex;justify-content:center;align-items:center}
+.header-title h1{font-size:20px;font-weight:700;display:flex;align-items:center;gap:10px;padding:10px 28px;border-radius:30px;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);background:rgba(15,15,25,0.6);border:1px solid var(--glass-border);box-shadow:0 4px 20px rgba(0,0,0,0.2)}
+.header-user{display:flex;justify-content:flex-end;align-items:center;gap:0;padding:0 4px}
+.header-user .user-pill{display:inline-flex;align-items:center;gap:10px;padding:8px 16px;border-radius:24px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);background:rgba(15,15,25,0.6);border:1px solid var(--glass-border)}
+.header-user .user-pill span{font-size:13px;color:var(--text2)}
+.header-user .user-pill button{padding:4px 12px;border-radius:16px;background:rgba(255,71,87,0.15);color:#ff4757;border:1px solid rgba(255,71,87,0.3);font-size:12px;cursor:pointer;font-weight:500;transition:all .2s;white-space:nowrap}
+.header-user .user-pill button:hover{background:rgba(255,71,87,0.3)}
+.nav{display:inline-flex;gap:3px;justify-content:center}
+.nav button{background:rgba(15,15,25,0.55);border:1px solid var(--glass-border);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);color:var(--text2);padding:8px 18px;cursor:pointer;font-size:13px;font-family:inherit;transition:all .2s;white-space:nowrap}
+.nav button:first-child{border-radius:16px 0 0 16px}
+.nav button:last-child{border-radius:0 16px 16px 0;border-left:none}
+.nav button + button{border-left:none}
+.nav button:hover{background:rgba(108,92,231,0.15);color:var(--text);border-color:rgba(108,92,231,0.3)}
+.nav button.active{background:rgba(108,92,231,0.4);color:#fff;border-color:rgba(108,92,231,0.6);box-shadow:0 2px 12px rgba(108,92,231,0.25)}
+main{flex:1;overflow-y:auto;padding:20px;scrollbar-width:thin}
+.tab{display:none}.tab.active{display:block}
+.glass{backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.3)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:20px}
+.stat-card{padding:20px;text-align:center;transition:transform .2s}
+.stat-card:hover{transform:translateY(-3px)}
+.stat-icon{font-size:28px;margin-bottom:6px}
+.stat-value{font-size:28px;font-weight:700;font-family:var(--font-mono);margin-bottom:2px}
+.stat-label{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:1px}
+.v-tps{color:var(--success)}.v-players{color:#6c5ce7}.v-mem{color:var(--warning)}.v-time{color:var(--text)}
+.players-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.player-tag{background:rgba(108,92,231,0.15);border:1px solid rgba(108,92,231,0.3);border-radius:16px;padding:3px 10px;font-size:12px}
+.no-players{color:var(--text2);font-style:italic;font-size:12px}
+.card{padding:18px;margin-bottom:16px}
+.card-title{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:6px}
+.console-wrap{height:520px;display:flex;flex-direction:column;border-radius:16px;overflow:hidden}
+.console-out{flex:1;overflow-y:auto;padding:14px;font-family:var(--font-mono);font-size:12px;line-height:1.7;background:rgba(0,0,0,0.3)}
+.console-input-area{display:flex;gap:6px;padding:10px;border-top:1px solid var(--glass-border)}
+.console-input-area input{flex:1;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:10px;padding:8px 12px;color:var(--text);font-family:var(--font-mono);font-size:13px;outline:none}
+.console-input-area input:focus{border-color:var(--accent)}
+.btn{background:rgba(108,92,231,0.3);border:1px solid rgba(108,92,231,0.4);border-radius:10px;padding:8px 16px;color:#fff;cursor:pointer;font-size:13px;font-family:inherit;transition:all .2s;white-space:nowrap}
+.btn:hover{background:rgba(108,92,231,0.5)}
+.btn-danger{background:rgba(255,71,87,0.2);border-color:rgba(255,71,87,0.4)}
+.btn-danger:hover{background:rgba(255,71,87,0.4)}
+.ps-table{width:100%;border-collapse:collapse;font-size:13px}
+.ps-table th{text-align:left;padding:10px 12px;color:var(--text2);font-weight:600;border-bottom:1px solid var(--glass-border);font-size:11px;text-transform:uppercase;letter-spacing:0.5px}
+.ps-table td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.04)}
+.ps-table tr:hover td{background:rgba(255,255,255,0.03)}
+.ps-table .status-online{color:var(--success);font-weight:600}
+.ps-table .status-offline{color:var(--text2)}
+.btn-sm{padding:4px 10px;font-size:11px;border-radius:8px}
+.btn-ghost{background:transparent;border:1px solid var(--glass-border);color:var(--text2)}
+.btn-ghost:hover{background:var(--glass-hover);color:var(--text)}
+.cmd-line{color:#6c5ce7;font-weight:600;margin-top:8px}
+.cmd-out{color:var(--text);margin-bottom:8px}
+.log-wrap{height:520px;display:flex;flex-direction:column;border-radius:16px;overflow:hidden}
+.log-out{flex:1;overflow-y:auto;padding:12px;font-family:var(--font-mono);font-size:11px;line-height:1.6;background:rgba(0,0,0,0.3)}
+.log-line{padding:1px 0;border-bottom:1px solid rgba(255,255,255,0.03);word-break:break-all}
+.log-line.warn{color:var(--warning)}.log-line.error{color:var(--danger)}.log-line.debug{color:#666}
+.log-header{padding:10px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--glass-border);background:rgba(0,0,0,0.2)}
+.quick-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:20px}
+.quick-card{padding:14px;cursor:pointer;transition:all .2s;text-align:center}
+.quick-card:hover{transform:translateY(-3px);border-color:rgba(108,92,231,0.5);background:rgba(108,92,231,0.15)}
+.quick-card.cmd-card{display:flex;align-items:center;gap:10px;text-align:left;position:relative;padding:12px 14px;min-height:76px}
+.cmd-card .cmd-icon{font-size:22px;flex-shrink:0}
+.cmd-card .cmd-main{flex:1;min-width:0}
+.cmd-card .cmd-cn{font-size:13px;font-weight:600;margin-bottom:2px}
+.cmd-card .cmd-actions{display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0}
+.cmd-card .cmd-copy{font-size:16px;opacity:0.4;transition:opacity .2s}
+.cmd-card:hover .cmd-copy{opacity:1}
+.cmd-card .cmd-cat{font-size:9px;color:var(--text2);background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:6px}
+.cmd-card.copied{border-color:var(--success);background:rgba(0,210,211,0.12)}
+.quick-icon{font-size:24px;margin-bottom:6px}
+.quick-name{font-size:13px;font-weight:600;margin-bottom:3px}
+.quick-cmd{font-size:10px;color:var(--accent2);font-family:var(--font-mono);margin-bottom:4px}
+.quick-desc{font-size:11px;color:var(--text2)}
+.cat-tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.cat-tab{padding:6px 14px;border-radius:20px;font-size:12px;cursor:pointer;background:var(--glass-bg);border:1px solid var(--glass-border);color:var(--text2);transition:all .2s;font-family:inherit}
+.cat-tab:hover{color:var(--text)}
+.cat-tab.active{background:rgba(108,92,231,0.3);color:#fff;border-color:rgba(108,92,231,0.5)}
+.gen-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.gen-form label{font-size:11px;color:var(--text2);display:flex;flex-direction:column;gap:4px}
+.gen-form input,.gen-form select{background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;outline:none;font-family:var(--font-mono)}
+.gen-form input:focus,.gen-form select:focus{border-color:var(--accent)}
+.gen-result{background:rgba(0,0,0,0.4);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--accent);border-radius:10px;padding:12px;font-family:var(--font-mono);font-size:13px;color:#00d2d3;display:flex;align-items:center;gap:8px}
+.controls-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px}
+.ctrl-btn{padding:24px 16px;text-align:center;cursor:pointer;transition:all .2s}
+.ctrl-btn:hover{transform:translateY(-3px)}
+.ctrl-btn .icon{font-size:32px;margin-bottom:8px}
+.ctrl-btn .label{font-size:14px;font-weight:600;margin-bottom:4px}
+.ctrl-btn .desc{font-size:11px;color:var(--text2)}
+.toast{position:fixed;top:20px;right:20px;z-index:9999;background:rgba(20,20,30,0.9);backdrop-filter:blur(12px);border:1px solid var(--glass-border);border-radius:12px;padding:12px 18px;font-size:13px;color:var(--text);transform:translateX(120%);transition:transform .3s;max-width:300px}
+.toast.show{transform:translateX(0)}
+
+/* 配置页 */
+/* 配置页 */
+.cfg-search{width:100%;padding:8px 14px;border-radius:8px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.12);color:#fff;font-size:13px;margin-bottom:12px;font-family:inherit}
+.cfg-search:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(108,92,231,0.2)}
+.cfg-search::placeholder{color:var(--text2)}
+.cfg-note{display:block;margin-top:4px;font-size:10px;color:var(--text2);font-family:var(--font-mono);min-height:14px;transition:color .2s}
+.cfg-note.warn{color:#ffaa00}
+.cfg-note.ok{color:#00b894}
+.cfg-note.err{color:#ff4444}
+.cfg-note.info{color:#6c5ce7}
+.cfg-category{margin-bottom:20px;border:1px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden}
+.cfg-cat-title{font-size:15px;font-weight:700;color:var(--text1);margin-bottom:10px;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.02);transition:background .2s;user-select:none}
+.cfg-cat-title:hover{background:rgba(108,92,231,0.08)}
+.cfg-cat-title .arrow{transition:transform .3s;font-size:12px;color:var(--text2)}
+.cfg-cat-title.collapsed .arrow{transform:rotate(-90deg)}
+.cfg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px;padding:10px 14px}
+.cfg-item{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:10px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;flex-wrap:wrap}
+.cfg-item-label{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.cfg-item-name{font-size:13px;color:var(--text1);font-weight:500}
+.cfg-item-key{font-size:10px;color:var(--text2);font-family:monospace}
+.cfg-item-ctrl{flex-shrink:0;display:flex;align-items:center;gap:6px;width:100%;margin-top:4px}
+.cfg-item .cfg-switch-wrap{display:flex;align-items:center;gap:8px}
+.cfg-switch{position:relative;width:44px;height:24px;background:rgba(255,255,255,0.1);border-radius:12px;cursor:pointer;transition:background .3s;border:1px solid rgba(255,255,255,0.1);flex-shrink:0}
+.cfg-switch.on{background:linear-gradient(135deg,#6c5ce7,#9b8cff);border-color:transparent}
+.cfg-switch-knob{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .3s;box-shadow:0 2px 4px rgba(0,0,0,0.3)}
+.cfg-switch.on .cfg-switch-knob{left:22px}
+.cfg-num{width:90px;padding:6px 8px;border-radius:6px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:13px;text-align:center;font-family:monospace;flex-shrink:0}
+.cfg-num:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(108,92,231,0.3)}
+.cfg-select{padding:6px 10px;border-radius:6px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:13px;flex-shrink:0}
+.cfg-select:focus{outline:none;border-color:var(--accent)}
+.cfg-text{flex:1;padding:6px 10px;border-radius:6px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:13px;font-family:monospace;max-width:220px}
+.cfg-text:focus{outline:none;border-color:var(--accent)}
+.cfg-item.changed{border-color:rgba(108,92,231,0.5);background:rgba(108,92,231,0.08)}
+/* 子区块标题（如面板设置内的账号安全） */
+.cfg-subtitle{grid-column:1/-1;margin-top:16px;margin-bottom:0;padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08);border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.02);display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:background .2s;user-select:none;font-size:14px;font-weight:700;color:var(--text1);border-radius:8px}
+.cfg-subtitle:hover{background:rgba(108,92,231,0.08)}
+.cfg-subtitle .arrow{transition:transform .3s;font-size:12px;color:var(--text2)}
+.cfg-subtitle.collapsed .arrow{transform:rotate(-90deg)}
+/* 账号安全内联按钮统一样式 */
+.cfg-inline-btn{padding:8px 14px;background:rgba(108,92,231,0.3);color:#a855f7;border:1px solid rgba(108,92,231,0.4);border-radius:8px;font-size:13px;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .2s}
+.cfg-inline-btn:hover{background:rgba(108,92,231,0.5)}
+.cfg-eye-btn{width:36px;height:34px;border-radius:6px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.15);color:var(--text2);font-size:16px;cursor:pointer;flex-shrink:0;padding:0;display:flex;align-items:center;justify-content:center;transition:background .2s}
+.cfg-eye-btn:hover{background:rgba(255,255,255,0.08)}
+.cfg-inline-flex{display:flex;gap:8px;align-items:center;width:100%}
+.cfg-inline-input-wrap{display:flex;gap:6px;align-items:center;flex:1}
+.gen-types{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:14px}
+.gen-type-btn{padding:10px;border-radius:10px;text-align:center;cursor:pointer;background:var(--glass-bg);border:1px solid var(--glass-border);color:var(--text2);font-size:12px;font-family:inherit;transition:all .2s}
+.gen-type-btn:hover{color:var(--text)}
+.gen-type-btn.active{background:rgba(108,92,231,0.2);color:#fff;border-color:rgba(108,92,231,0.4)}
+.gen-type-btn .gi{font-size:18px;display:block;margin-bottom:2px}
+.enchant-area{margin-top:12px;padding:12px;background:rgba(108,92,231,0.1);border:1px solid rgba(108,92,231,0.3);border-radius:10px}
+.enchant-area .ea-title{font-size:11px;color:var(--accent2);margin-bottom:8px;font-weight:600;display:flex;align-items:center;gap:6px}
+@media(max-width:768px){header{flex-direction:column;gap:10px}.stats{grid-template-columns:repeat(2,1fr)}.gen-form{grid-template-columns:1fr}}
+/* === 毛玻璃弹窗选择器 === */
+#picker-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:10000;display:none;align-items:center;justify-content:center}
+.picker-glass{width:680px;max-width:90vw;max-height:80vh;background:rgba(20,20,35,0.88);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid rgba(108,92,231,0.35);border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,0.55),0 0 50px rgba(108,92,231,0.08);display:flex;flex-direction:column;animation:pickerIn 0.2s ease;overflow:hidden}
+@keyframes pickerIn{from{transform:scale(0.95);opacity:0}to{transform:scale(1);opacity:1}}
+.picker-header{padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;gap:12px}
+.picker-title{font-size:14px;font-weight:600;color:var(--accent2);flex-shrink:0}
+.picker-search{flex:1;background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 14px;color:var(--text);font-size:13px;outline:none;font-family:inherit;transition:border-color .2s}
+.picker-search:focus{border-color:var(--accent)}
+.picker-close{cursor:pointer;color:var(--text2);font-size:18px;padding:4px 10px;border-radius:8px;transition:all .2s;user-select:none}
+.picker-close:hover{color:var(--danger);background:rgba(255,71,87,0.1)}
+.picker-grid{flex:1;overflow-y:auto;padding:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;min-height:0}
+.picker-filters{display:flex;gap:6px;padding:0 12px 8px;flex-wrap:wrap;align-items:center}
+.picker-filters .pf-ns{background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:4px 10px;color:var(--text);font-size:12px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.picker-filters .pf-ns.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.picker-filters .pf-ns:hover{border-color:rgba(255,255,255,0.25)}
+.picker-card{padding:10px 8px;border-radius:12px;border:1px solid rgba(255,255,255,0.06);background:rgba(0,0,0,0.2);cursor:pointer;transition:all .15s;text-align:center;display:flex;flex-direction:column;align-items:center;gap:2px}
+.picker-card:hover{border-color:rgba(108,92,231,0.55);background:rgba(108,92,231,0.18);transform:translateY(-2px)}
+.picker-card .pc-name{font-size:12px;font-weight:600;color:var(--text);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.picker-card .pc-id{font-size:9px;color:var(--text2);font-family:var(--font-mono);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.picker-card .pc-cat{font-size:9px;color:var(--accent2);background:rgba(108,92,231,0.12);padding:1px 6px;border-radius:6px;margin-top:2px}
+.picker-footer{padding:8px 16px;border-top:1px solid rgba(255,255,255,0.06);font-size:11px;color:var(--text2);text-align:center;display:flex;justify-content:space-between;align-items:center}
+.picker-empty{grid-column:1/-1;text-align:center;padding:40px;color:var(--text2)}
+/* === 生成器选择按钮 === */
+.gen-field-pick{display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(0,0,0,0.3);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.08);border-radius:8px;color:var(--text);font-size:13px;cursor:pointer;transition:all .2s;user-select:none;font-family:var(--font-mono);min-height:38px}
+.gen-field-pick:hover{border-color:rgba(108,92,231,0.5);background:rgba(108,92,231,0.12)}
+.gen-field-pick .gp-icon{font-size:14px;flex-shrink:0}
+.gen-field-pick .gp-name{font-size:12px;font-weight:600;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gen-field-pick .gp-id{font-size:10px;color:var(--text2);flex-shrink:0;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gen-field-pick .gp-arrow{color:var(--accent2);font-size:10px;flex-shrink:0;transition:transform .2s}
+.gen-field-pick:hover .gp-arrow{transform:translateY(1px)}
+.gen-field-pick.active{border-color:rgba(108,92,231,0.6);background:rgba(108,92,231,0.15)}
+.gen-field-text{background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;outline:none;font-family:var(--font-mono);width:100%;box-sizing:border-box}
+.gen-field-text:focus{border-color:var(--accent)}
+
+/* === 数字预设按钮组 === */
+.gen-num-presets{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px}
+.gen-num-btn{padding:5px 12px;border-radius:6px;font-size:11px;font-family:var(--font-mono);cursor:pointer;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:var(--text2);transition:all .15s;user-select:none}
+.gen-num-btn:hover{border-color:rgba(108,92,231,0.5);color:var(--text);background:rgba(108,92,231,0.12)}
+.gen-num-btn.active{border-color:var(--accent);color:#fff;background:rgba(108,92,231,0.35)}
+.gen-num-input{margin-top:4px;width:100%;box-sizing:border-box}
+.gen-field-select{background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;outline:none;font-family:var(--font-mono);width:100%;box-sizing:border-box}
+.gen-field-select:focus{border-color:var(--accent)}
+.gen-field-select option{background:#1a1a2e;color:var(--text)}
+
+</style>
+</head>
+<body>
+<img id="bg-wallpaper" src="">
+<div id="bg-overlay"></div>
+<div class="app">
+<header>
+  <div class="header-title">
+    <h1><span>⛏️</span> MC 服务端管理面板</h1>
+  </div>
+  <div class="header-user">
+    <div class="user-pill">
+      <span>👤 <span id="auth-username">...</span></span>
+      <button onclick="logout()">🚪 退出登录</button>
+    </div>
+  </div>
+  <div class="nav">
+    <button class="active" data-tab="dashboard" onclick="tab('dashboard')">📊 概览</button>
+    <button data-tab="console" onclick="tab('console')">💻 控制台</button>
+    <button data-tab="quick" onclick="tab('quick')">📚 指令大全</button>
+    <button data-tab="gen" onclick="tab('gen')">🧩 指令生成</button>
+    <button data-tab="config" onclick="tab('config')">🔧 配置</button>
+    <button data-tab="control" onclick="tab('control')">⚙️ 控制</button>
+  </div>
+</header>
+<main>
+<div id="tab-dashboard" class="tab active">
+  <div class="stats">
+    <div class="glass stat-card"><div class="stat-icon">⚡</div><div class="stat-value v-tps" id="v-tps">--</div><div class="stat-label">TPS</div></div>
+    <div class="glass stat-card"><div class="stat-icon">👥</div><div class="stat-value v-players" id="v-players">--</div><div class="stat-label">在线玩家</div></div>
+    <div class="glass stat-card"><div class="stat-icon">🧠</div><div class="stat-value v-mem" id="v-mem">--</div><div class="stat-label">内存</div></div>
+    <div class="glass stat-card"><div class="stat-icon">🕐</div><div class="stat-value v-time" id="v-time">--</div><div class="stat-label">刷新时间</div></div>
+  </div>
+  <div class="glass card"><div class="card-title">👥 在线玩家</div><div class="players-list" id="pl-list"><span class="no-players">加载中...</span></div></div>
+  <div class="glass card"><div class="card-title">🖥️ 进程</div><div id="proc-info" style="font-family:var(--font-mono);font-size:12px;color:var(--text2)">加载中...</div></div>
+  <div class="glass card" style="margin-top:16px"><div class="card-title" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span>👥 玩家在线时长统计</span><span style="font-size:12px;color:var(--text2)" id="ps-count">加载中...</span></div><div style="overflow-x:auto"><table class="ps-table" id="ps-table"><thead><tr><th>玩家</th><th>状态</th><th>总时长</th><th>会话次数</th><th>上次上线</th><th>上次下线</th></tr></thead><tbody id="ps-body"><tr><td colspan="6" style="text-align:center;color:var(--text2);padding:20px">加载中...</td></tr></tbody></table></div></div>
+  <div class="glass card" style="margin-top:16px;padding:14px 20px;display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between">
+    <span style="font-size:13px;font-family:var(--font-mono);color:var(--accent2)" id="sv-info">🔍 检测中...</span>
+    <span id="opt-hint" style="font-size:12px;color:var(--text2)"></span>
+    <button class="btn btn-sm btn-ghost" onclick="refreshItemData()">🔄 刷新物品数据</button>
+  </div>
+</div>
+<div id="tab-console" class="tab">
+  <div class="glass console-wrap" style="height:560px">
+    <div class="log-header">
+      <span class="card-title" style="margin:0">💻 控制台（日志 + 命令）</span>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span style="font-size:11px;color:var(--text2)">日志自动刷新 · 命令按 Enter 发送</span>
+        <button class="btn btn-sm btn-ghost" onclick="clearConsole()">🗑️ 清除</button>
+      </div>
+    </div>
+    <div class="console-out" id="console-out"><div class="cmd-out" style="color:var(--text2)">⛏️ 控制台就绪 — 自动显示服务器日志，可在此输入命令</div></div>
+    <div class="console-input-area"><input id="cmd-in" placeholder="输入命令后按 Enter（也可在此发送RCON命令）..." autofocus><button class="btn" onclick="sendCmd()">发送</button></div>
+  </div>
+</div>
+<div id="tab-quick" class="tab">
+  <div class="glass card" style="margin-bottom:16px">
+    <div class="card-title">📚 指令大全 — 服务器全部可用指令（点击复制）</div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+      <input id="cmd-search" placeholder="🔍 搜索指令/中文名称/说明..." style="flex:1;min-width:200px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:10px;padding:8px 12px;color:var(--text);font-size:13px;outline:none">
+      <button class="btn btn-sm btn-ghost" onclick="reloadCommands()">🔄 刷新</button>
+    </div>
+    <div class="cat-tabs" id="cmd-cat-tabs"></div>
+  </div>
+  <div id="cmd-count" style="font-size:11px;color:var(--text2);margin-bottom:10px">加载中...</div>
+  <div class="quick-grid" id="cmd-grid"></div>
+</div>
+<div id="tab-gen" class="tab">
+  <div class="glass card"><div class="card-title">🧩 指令生成器</div><div class="gen-types" id="gen-types"></div><div id="gen-form-area"></div><div class="gen-result" id="gen-result" style="margin-top:12px">选择指令类型开始生成...</div></div>
+</div>
+<div id="tab-control" class="tab">
+  <div class="controls-grid">
+    <div class="glass ctrl-btn" onclick="doAction('save')"><div class="icon">💾</div><div class="label">保存世界</div><div class="desc">save-all</div></div>
+    <div class="glass ctrl-btn" onclick="doAction('reload')"><div class="icon">🔄</div><div class="label">重载配置</div><div class="desc">reload</div></div>
+    <div class="glass ctrl-btn" onclick="doAction('stop')"><div class="icon">🛑</div><div class="label">安全停止</div><div class="desc">stop</div></div>
+    <div class="glass ctrl-btn btn-danger" onclick="doAction('kill')"><div class="icon">💀</div><div class="label">强制终止</div><div class="desc">SIGTERM</div></div>
+  </div>
+  <div class="glass card" style="margin-top:16px"><div class="card-title">⚠️ 操作说明</div><div style="font-size:13px;color:var(--text2);line-height:2">
+    <p><span style="color:var(--success)">💾 保存世界</span> — 保存所有数据，不中断</p>
+    <p><span style="color:var(--warning)">🔄 重载配置</span> — 热重载配置</p>
+    <p><span style="color:var(--danger)">🛑 安全停止</span> — 正常关闭</p>
+    <p><span style="color:#ff2040">💀 强制终止</span> — 直接杀进程，慎用！</p>
+  </div></div>
+</div>
+<!-- 配置 tab -->
+<div id="tab-config" class="tab">
+  <div class="glass card" style="margin-bottom:16px">
+    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>🔧 服务器配置</span>
+      <span style="font-size:12px;color:var(--text2)" id="cfg-hint">修改后点击"保存"生效</span>
+    </div>
+  </div>
+  <div id="cfg-body">
+  </div>
+  <div class="glass card" style="margin-top:16px;padding:14px 24px;display:flex;flex-direction:column;gap:10px;align-items:stretch">
+    <input class="cfg-search" id="cfg-search-box" placeholder="🔍 搜索游戏配置项..." oninput="filterCfgItems(this.value)">
+    <div style="display:flex;gap:10px;justify-content:flex-end;align-items:center">
+      <span id="cfg-status" style="font-size:12px;color:var(--text2);flex-shrink:0">未修改</span>
+      <button id="cfg-reset-btn" onclick="resetConfig()" style="padding:8px 18px;border-radius:8px;background:rgba(255,255,255,0.08);color:var(--text2);border:1px solid rgba(255,255,255,0.12);font-size:13px;cursor:pointer">🔄 重置</button>
+      <button id="cfg-save-btn" onclick="saveConfig()" style="padding:8px 24px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#9b8cff);color:#fff;border:none;font-size:14px;cursor:pointer;font-weight:600">💾 保存游戏配置</button>
+      <button onclick="savePanelConfig()" style="padding:8px 24px;border-radius:8px;background:linear-gradient(135deg,#00b894,#55efc4);color:#fff;border:none;font-size:14px;cursor:pointer;font-weight:600">💾 保存面板配置</button>
+    </div>
+  </div>
+</div>
+</main>
+</div>
+<div class="toast" id="toast"></div>
+
+<!-- 强制修改密码弹窗 -->
+<div id="mustChangeModal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:100000;display:none;align-items:center;justify-content:center">
+<div style="background:rgba(20,20,35,0.95);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:36px 32px;width:90%;max-width:420px;box-shadow:0 8px 48px rgba(0,0,0,0.6)">
+<div style="text-align:center;font-size:36px;margin-bottom:8px">🔒</div>
+<h2 style="text-align:center;color:#fff;margin-bottom:6px;font-size:18px">首次登录 — 必须修改密码</h2>
+<p style="text-align:center;color:#aaa;font-size:13px;margin-bottom:24px">为安全起见，首次登录必须设置新密码</p>
+<div style="margin-bottom:14px">
+<label style="display:block;font-size:12px;color:#aaa;margin-bottom:4px">新密码</label>
+<input id="mc-new-pwd" type="password" placeholder="请输入新密码（至少3位）" style="width:100%;padding:11px 14px;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:14px;outline:none">
+</div>
+<div style="margin-bottom:14px">
+<label style="display:block;font-size:12px;color:#aaa;margin-bottom:4px">确认新密码</label>
+<input id="mc-confirm-pwd" type="password" placeholder="再次输入新密码" style="width:100%;padding:11px 14px;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:14px;outline:none">
+</div>
+<div id="mc-msg" style="font-size:12px;text-align:center;margin-bottom:14px;color:#ff6b6b;display:none"></div>
+<button onclick="doMustChange()" style="width:100%;padding:13px;background:linear-gradient(135deg,#6c5ce7,#a855f7);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">确认修改</button>
+</div>
+</div>
+
+<div id="picker-overlay">
+<div class="picker-glass">
+<div class="picker-header">
+<span class="picker-title" id="picker-title"></span>
+<input class="picker-search" id="picker-search" placeholder="🔍 搜索..." autocomplete="off">
+<span class="picker-close" onclick="closePicker()">✕</span>
+</div>
+<div class="picker-filters" id="picker-filters"></div>
+<div class="picker-grid" id="picker-grid"></div>
+<div class="picker-footer"><span id="picker-count">0 项</span><span id="picker-hint">点击选择</span></div>
+</div>
+</div>
+<script src="mock.js"></script>
+<script>
+
+// ===== 认证系统 =====
+var AUTH_STATE=null;
+async function checkAuth(){
+  try{
+    var r=await fetch('/api/auth/check');
+    var d=await r.json();
+    AUTH_STATE=d;
+    if(!d.authenticated){window.location.href='/';return}
+    var unameEl=document.getElementById('auth-username');
+    if(unameEl) unameEl.textContent=d.username;
+    var unameEl2=document.getElementById('auth-username2');
+    if(unameEl2) unameEl2.textContent=d.username;
+    var accInlineUser=document.getElementById('acc-inline-user');
+    if(accInlineUser) accInlineUser.value=d.username;
+    if(d.must_change){showMustChangeModal()}
+  }catch(e){window.location.href='/'}
+}
+checkAuth();
+function logout(){
+  if(!confirm('确定要退出登录吗？'))return;
+  fetch('/api/auth/logout').then(function(){window.location.href='/'});
+}
+async function changePassword(oldPwd,newPwd){
+  if(!newPwd||newPwd.length<3){toast('新密码长度至少3位','err');return}
+  try{
+    var r=await fetch('/api/auth/change_password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({old_password:oldPwd,new_password:newPwd})});
+    var d=await r.json();
+    if(d.ok){
+      toast('密码修改成功');
+      AUTH_STATE.must_change=false;
+      closeModal('mustChangeModal');
+      if(document.getElementById('auth-username')){
+        var r2=await fetch('/api/auth/check');var d2=await r2.json();AUTH_STATE=d2;
+      }
+    }else{toast(d.message||'修改失败','err')}
+  }catch(e){toast(e.message,'err')}
+}
+async function changeUsername(newUser){
+  if(!newUser||newUser.length<1||newUser.length>32){toast('用户名长度1-32位','err');return}
+  if(/[^a-zA-Z0-9_\u4e00-\u9fa5\-]/.test(newUser)){toast('用户名只能包含字母、数字、下划线和连字符','err');return}
+  try{
+    var r=await fetch('/api/auth/change_username',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:newUser})});
+    var d=await r.json();
+    if(d.ok){toast('用户名修改成功');checkAuth()}
+    else{toast(d.message||'修改失败','err')}
+  }catch(e){toast(e.message,'err')}
+}
+
+function showMustChangeModal(){
+  document.getElementById('mustChangeModal').style.display='flex';
+  document.getElementById('mc-new-pwd').focus();
+}
+function closeModal(id){document.getElementById(id).style.display='none'}
+function doMustChange(){
+  var np=document.getElementById('mc-new-pwd').value;
+  var cp=document.getElementById('mc-confirm-pwd').value;
+  var msg=document.getElementById('mc-msg');
+  msg.style.display='none';
+  if(!np||np.length<3){msg.textContent='新密码长度至少3位';msg.style.display='block';return}
+  if(np!==cp){msg.textContent='两次密码不一致';msg.style.display='block';return}
+  changePassword('',np).then(function(){
+    if(!AUTH_STATE||!AUTH_STATE.must_change){closeModal('mustChangeModal')}
+  });
+}
+function doChangeUsernameInline(){
+  var u=document.getElementById('acc-inline-user').value.trim();
+  var msg=document.getElementById('acc-inline-msg');
+  msg.style.display='none';
+  changeUsername(u).then(function(){
+    if(AUTH_STATE){document.getElementById('acc-inline-user').value=AUTH_STATE.username}
+  });
+}
+function doChangePasswordInline(){
+  var oldP=document.getElementById('acc-inline-old-pwd').value;
+  var newP=document.getElementById('acc-inline-new-pwd').value;
+  var msg=document.getElementById('acc-inline-msg');
+  msg.style.display='none';
+  if(!newP||newP.length<3){msg.textContent='新密码长度至少3位';msg.style.display='block';return}
+  changePassword(oldP,newP).then(function(){
+    document.getElementById('acc-inline-old-pwd').value='';
+    document.getElementById('acc-inline-new-pwd').value='';
+  });
+}
+function toggleInlinePass(inputId,eyeId){
+  var inp=document.getElementById(inputId);
+  var eye=document.getElementById(eyeId);
+  if(inp.type==='password'){inp.type='text';eye.textContent='🙈'}
+  else{inp.type='password';eye.textContent='👁️'}
+}
+function toggleAccountSection(){
+  var body=document.getElementById('acc-section-body');
+  var subtitle=document.querySelector('.cfg-subtitle');
+  if(subtitle){
+    var isCollapsed=subtitle.classList.toggle('collapsed');
+    body.style.display=isCollapsed?'none':'';
+  }
+}
+function togglePanelSection(){
+  var body=document.getElementById('pc-section-body');
+  var title=document.getElementById('cfg-panel-section').querySelector('.cfg-cat-title');
+  if(title){
+    var isCollapsed=title.classList.toggle('collapsed');
+    body.style.display=isCollapsed?'none':'';
+  }
+}
+
+function esc(s){return s?s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''}
+function unescapeUrl(s){try{return decodeURIComponent(s)}catch(e){return s}}
+function toast(msg,t){var e=document.getElementById('toast');e.textContent=msg;e.className='toast show';if(t==='ok'){e.style.borderLeft='3px solid #00d2d3'}else if(t==='err'){e.style.borderLeft='3px solid #ff4757'}else{e.style.borderLeft='3px solid #6c5ce7'}setTimeout(function(){e.classList.remove('show')},3000)}
+var logTimer=null,curTab='dashboard';
+function tab(name){curTab=name;var tabs=document.querySelectorAll('.tab');for(var i=0;i<tabs.length;i++)tabs[i].classList.remove('active');var btns=document.querySelectorAll('.nav button');for(var j=0;j<btns.length;j++)btns[j].classList.remove('active');var target=document.getElementById('tab-'+name);if(target)target.classList.add('active');var btn=document.querySelector('.nav button[data-tab="'+name+'"]');if(btn)btn.classList.add('active');if(name==='console'){startConsoleLog();if(!logTimer){logTimer=setInterval(pollLogs,5000);pollLogs()}}else{if(logTimer){clearInterval(logTimer);logTimer=null}}}
+var wpList=null;var wallpaperIdx=0;
+async function loadWallpaper(){try{if(!wpList){var r=await fetch('/api/wallpapers');var d=await r.json();wpList=d.wallpapers||[]}if(wpList.length){wallpaperIdx=wallpaperIdx%wpList.length;document.getElementById('bg-wallpaper').src='/wp/'+wallpaperIdx;wallpaperIdx++}}catch(e){}}
+setInterval(loadWallpaper,30000);loadWallpaper();
+async function loadStatus(){try{var r=await fetch('/api/status');var d=await r.json();document.getElementById('v-tps').textContent=d.tps!=null?d.tps.toFixed(1):'--';document.getElementById('v-players').textContent=d.playerCount;document.getElementById('v-mem').textContent=d.memoryUsed?(parseInt(d.memoryUsed)/1024/1024).toFixed(1)+' GB':'--';document.getElementById('v-time').textContent=d.timestamp;var pl=document.getElementById('pl-list');if(d.players&&d.players.length){pl.innerHTML='';for(var i=0;i<d.players.length;i++){var sp=document.createElement('span');sp.className='player-tag';sp.textContent='👤 '+d.players[i];pl.appendChild(sp)}}else{pl.innerHTML='<span class="no-players">暂无玩家</span>'}var pi=document.getElementById('proc-info');if(d.pids&&d.pids.length){pi.innerHTML='';for(var k=0;k<d.pids.length;k++){var sp2=document.createElement('span');sp2.style.color='var(--success)';sp2.textContent='PID: '+d.pids[k]+'  ';pi.appendChild(sp2)}}else{pi.innerHTML='<span style="color:var(--danger)">未找到进程</span>'}}catch(e){}}
+setInterval(loadStatus,5000);loadStatus();
+document.getElementById('cmd-in').addEventListener('keydown',function(e){if(e.key==='Enter')sendCmd()});
+function togglePassVis(){var el=document.getElementById('pc-rcon-pass');var eye=document.getElementById('pc-pass-eye');if(!el||!eye)return;if(el.type==='password'){el.type='text';eye.textContent='🙈'}else{el.type='password';eye.textContent='👁️'}}
+var _lastLogCount=0;
+async function pollLogs(){try{var r=await fetch('/api/log');var d=await r.json();var lines=d.lines||[];var out=document.getElementById('console-out');if(!lines.length)return;var start=Math.min(_lastLogCount,lines.length);for(var i=start;i<lines.length;i++){var ln=lines[i];var l=document.createElement('div');if(ln.indexOf('[WARN]')>=0){l.className='log-line warn';l.style.color='var(--warning)'}else if(ln.indexOf('ERROR')>=0||ln.indexOf('[ERROR]')>=0){l.className='log-line error';l.style.color='var(--danger)'}else{l.className='log-line';l.style.color='var(--text2)'}l.style.fontSize='11px';l.style.fontFamily='var(--font-mono)';l.style.padding='1px 0';l.style.lineHeight='1.6';l.style.wordBreak='break-all';l.textContent=ln;out.appendChild(l)}_lastLogCount=lines.length;out.scrollTop=out.scrollHeight}catch(e){}}
+function startConsoleLog(){_lastLogCount=0}
+async function sendCmd(){var inp=document.getElementById('cmd-in');var cmd=inp.value.trim();if(!cmd)return;var out=document.getElementById('console-out');var line=document.createElement('div');line.className='cmd-line';line.textContent='❯ '+cmd;out.appendChild(line);inp.value='';try{var r=await fetch('/api/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:cmd})});var d=await r.json();var o=document.createElement('div');o.className='cmd-out';o.textContent=unescapeUrl(d.output||'');if(d.output&&d.output.indexOf('❌')===0)o.style.color='var(--danger)';out.appendChild(o)}catch(e){var oe=document.createElement('div');oe.className='cmd-out';oe.style.color='var(--danger)';oe.textContent='❌ '+e.message;out.appendChild(oe)}out.scrollTop=out.scrollHeight;await pollLogs()}
+function clearConsole(){document.getElementById('console-out').innerHTML='';_lastLogCount=0;toast('控制台已清除','ok')}
+async function doAction(a){var lbl={save:'保存世界',reload:'重载配置',stop:'安全停止',kill:'强制终止'};if(a==='stop'||a==='kill'){if(!confirm('确定要'+lbl[a]+'吗？'))return}try{var r=await fetch('/api/control',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:a})});var d=await r.json();toast(d.output,d.output.indexOf('✅')===0?'ok':'err')}catch(e){toast(e.message,'err')}}
+
+// ============ 数据缓存 ============
+var ITEMS_LIST=[],ENCHANT_LIST=[],ONLINE_PLAYERS=[],ENTITIES_LIST=[];
+var ITEM_NAMESPACES=[],ENTITY_NAMESPACES=[];
+var ENCHANTABLE_KWS=['sword','axe','pickaxe','shovel','hoe','bow','crossbow','trident','helmet','chestplate','leggings','boots','elytra','fishing_rod','shield'];
+var WEATHERS=[{id:'clear',name:'晴天',cat:'天气'},{id:'rain',name:'雨天',cat:'天气'},{id:'thunder',name:'雷暴',cat:'天气'}];
+var GAMEMODES=[{id:'0',name:'生存模式',cat:'模式'},{id:'1',name:'创造模式',cat:'模式'},{id:'2',name:'冒险模式',cat:'模式'},{id:'3',name:'旁观模式',cat:'模式'}];
+var PARTICLES=[{id:'flame',name:'火焰',cat:'自然'},{id:'smoke',name:'烟雾',cat:'自然'},{id:'heart',name:'爱心',cat:'生物'},{id:'redstone',name:'红石粉',cat:'红石'},{id:'enchantment_table',name:'附魔台',cat:'魔法'},{id:'villager_happy',name:'村民开心',cat:'村民'},{id:'villager_anger',name:'村民愤怒',cat:'村民'},{id:'note',name:'音符',cat:'音效'},{id:'crit',name:'暴击',cat:'战斗'},{id:'wizard',name:'巫师',cat:'魔法'},{id:'campfire_signal_smoke',name:'营火烟',cat:'自然'},{id:'dragon_breath',name:'龙息',cat:'龙'},{id:'cloud',name:'云',cat:'自然'},{id:'bubble',name:'气泡',cat:'自然'},{id:'rain',name:'雨滴',cat:'自然'},{id:'snowshovel',name:'雪球',cat:'自然'},{id:'portal',name:'传送门',cat:'传送'},{id:'mob_spawner',name:'生成器',cat:'生物'},{id:'explode',name:'爆炸',cat:'战斗'},{id:'totem_of_undying',name:'图腾',cat:'物品'},{id:'cherry_leaves',name:'樱花',cat:'自然'},{id:'ash',name:'灰烬',cat:'自然'},{id:'crimson_roots',name:'绯红根',cat:'下界'},{id:'wither_rose',name:'凋零玫瑰',cat:'战斗'},{id:'shriek',name:'尖啸',cat:'远古'}];
+var EFFECTS=[{id:'speed',name:'急迫',cat:'增益'},{id:'slowness',name:'缓慢',cat:'减益'},{id:'haste',name:'急迫',cat:'增益'},{id:'mining_fatigue',name:'挖掘疲惫',cat:'减益'},{id:'strength',name:'力量',cat:'增益'},{id:'instant_health',name:'瞬间治疗',cat:'增益'},{id:'instant_damage',name:'瞬间伤害',cat:'减益'},{id:'jump_boost',name:'跳跃提升',cat:'增益'},{id:'nausea',name:'恶心',cat:'减益'},{id:'regeneration',name:'生命恢复',cat:'增益'},{id:'resistance',name:'抗性提升',cat:'增益'},{id:'fire_resistance',name:'火抗',cat:'增益'},{id:'water_breathing',name:'水下呼吸',cat:'增益'},{id:'invisibility',name:'隐身',cat:'增益'},{id:'blindness',name:'失明',cat:'减益'},{id:'night_vision',name:'夜视',cat:'增益'},{id:'hunger',name:'饥饿',cat:'减益'},{id:'weakness',name:'虚弱',cat:'减益'},{id:'poison',name:'中毒',cat:'减益'},{id:'wither',name:'凋零',cat:'减益'},{id:'health_boost',name:'生命提升',cat:'增益'},{id:'absorption',name:'吸收',cat:'增益'},{id:'saturation',name:'饱和',cat:'增益'},{id:'glowing',name:'发光',cat:'增益'},{id:'levitation',name:'漂浮',cat:'增益'},{id:'luck',name:'幸运',cat:'增益'},{id:'unluck',name:'霉运',cat:'减益'}];
+var PLAYER_SELECTORS=[{id:'@p',name:'最近玩家',cat:'选择器'},{id:'@a',name:'全部玩家',cat:'选择器'},{id:'@s',name:'执行者',cat:'选择器'},{id:'@r',name:'随机玩家',cat:'选择器'}];
+var currentPickerItems=[],currentNsFilter='',currentCatFilter='',pickerScrollTop=0,pickerCardH=76,pickerBuf=3;
+var ITEM_CATEGORY_LIST=[];
+function getItemCategory(item){
+  var id=(item.id||'').toLowerCase();
+  for(var i=0;i<ITEM_CATEGORIES.length;i++){
+    var cat=ITEM_CATEGORIES[i];
+    var pats=cat.patterns;
+    for(var j=0;j<pats.length;j++){
+      if(id.indexOf(pats[j].toLowerCase())>=0){item._catId=cat.id;item._catName=cat.name;item._catIcon=cat.icon;return cat}
+    }
+  }
+  var last=ITEM_CATEGORIES[ITEM_CATEGORIES.length-1];
+  item._catId=last.id;item._catName=last.name;item._catIcon=last.icon;
+  return last; // other
+}
+function computeItemCategories(){
+  var counts={};
+  ITEM_CATEGORIES.forEach(function(c){counts[c.id]=0});
+  ITEMS_LIST.forEach(function(it){
+    var cat=getItemCategory(it);
+    counts[cat.id]=(counts[cat.id]||0)+1;
+  });
+  ITEM_CATEGORY_LIST=ITEM_CATEGORIES.filter(function(c){return counts[c.id]>0}).map(function(c){return{id:c.id,name:c.name,icon:c.icon,count:counts[c.id]}});
+}
+var NS_NAME_MAP={};
+var ITEM_CATEGORIES=[
+{id:'bb',name:'建筑方块',icon:'🧱',patterns:['stone','sand','gravel','dirt','grass_block','bedrock','cobblestone','andesite','diorite','granite','tuff','calcite','deepslate','nether_bricks','end_stone','mossy','mud','powder_snow','amethyst','copper','raw_copper','redstone_block','gold_block','iron_block','diamond_block','emerald_block','lapis_block','coal_block','ancient_debris','netherrack','soul_sand','soul_soil','obsidian','blackstone','basalt','glowstone','shroomlight','magma','soul_lantern','sea_lantern','scaffolding','barrier','podzol','rooted_dirt','coarse_dirt','clay','azalea','mangrove','warped','crimson','bamboo','cave','moss_block','ochre','verdant','pearlescent','fault','sculk','polished','chiseled','cracked','bricks','sandstone','quartz_block','prismarine','purpur','concrete','terracotta','dripstone','tinted','waxed','cobbled','reinforced','mud_bricks','dripstone','crying','sniffer','froglight','target','calibrated','jigsaw','brewing_stand','composter','loom','blast_furnace','smoker','stonecutter','smithing','fletching','cartography','lectern','grindstone','daylight_detector','spruce','birch','jungle','acacia','dark_oak','cherry','end_stone_bricks','respawn_anchor','conduit','beacon','pitcher_plant','echo_shard','snort_rose']},
+{id:'db',name:'装饰方块',icon:'🏠',patterns:['fence','gate','wall','carpet','stair','slab','trapdoor','door','sign','banner','painting','item_frame','end_frame','armor_stand','cauldron','flower_pot','bee_nest','beehive','campfire','soul_campfire','jack_o_lantern','tripwire','chain','rail','ladder','lever','button','pressure_plate','torch','soul_torch','soul_lantern','end_rod','fire','candle','cake','bell','bookshelf','barrel','chest','shulker','note_block','jukebox','anvil','furnace','furnace_minecart','minecart','chest_minecart','tnt_minecart','hopper_minecart','decorated_pot','lead','saddle','map','filled_map','empty_map','paper','decorated','snowball','leather_horse_armor','golden_horse_armor','diamond_horse_armor','iron_horse_armor','bone_meal','lily','seagrass','kelp','sweet_berries','glow_ink_sac','ink_sac','amethyst_shard','experience_bottle','name_tag','recovery_compass','compass','clock','spyglass','echo_shard','scrape','disc_fragment','goat_horn']},
+{id:'food',name:'食物饮品',icon:'🍖',patterns:['apple','cookie','bread','cake','pumpkin_pie','melon','beetroot','carrot','potato','baked_potato','mushroom_stew','beetroot_soup','rabbit_stew','suspicious_stew','golden_carrot','golden_apple','enchanted_golden_apple','fish','cod','salmon','pufferfish','tropical_fish','rabbit','mutton','beef','porkchop','chicken','glow_berries','sweet_berries','honey','honey_bottle','honeycomb','chorus','sugar','pumpkin','nether_wart','warped_fungus','crimson_fungus','totem','dragon_breath','ender_eye','suspicious','beetroot_soup','mushroom_stew','rabbit_stew','cooked','raw','fish']},
+{id:'tools',name:'工具',icon:'🔨',patterns:['pickaxe','axe','shovel','hoe','shears','brush','flint','carrot_on_a_stick','fishing_rod']},
+{id:'weapons',name:'武器',icon:'⚔️',patterns:['sword','bow','crossbow','trident','arrow','spectral_arrow','tipped_arrow']},
+{id:'armor',name:'盔甲',icon:'🛡️',patterns:['helmet','chestplate','leggings','boots','elytra','shield','turtle_helmet']},
+{id:'potions',name:'药水酿造',icon:'🧪',patterns:['potion','splash_potion','lingering_potion','brewing','blaze_powder','glowstone','magma_cream','fermented_spider_eye','phantom_membrane','gold_nugget','glass_bottle','bottle']},
+{id:'books',name:'书籍',icon:'📖',patterns:['written_book','writable_book','knowledge','bookshelf','book']},
+{id:'redstone',name:'红石电路',icon:'⚡',patterns:['redstone','comparator','repeater','piston','sticky_piston','observer','hopper','dropper','dispenser','redstone_torch','redstone_dust','redstone_wire','daylight_detector','command_block','chain_command','repeating_command','redstone_block','redstone_lamp','chain']},
+{id:'plants',name:'植物种子',icon:'🌱',patterns:['seed','sapling','flower','grass','fern','moss','vine','lily','seagrass','kelp','cactus','mushroom','melon','pumpkin','wheat','beetroot','carrot','potato','cocoa','rose','rose_bush','lily_of_the_valley','blue_orchid','allium','dandelion','poppy','oxeye_daisy','cornflower','lilac','peony','sunflower','tulip','wither_rose','spore','azalea','flowering','weeping_vines','twisting_vines','pointed_dripstone','glow_lichen','sculk','cave_vines','spore_blossom','glow_berries','sweet_berries','cave','moss_carpet','moss_block','nether_wart','cocoa']},
+{id:'music',name:'音乐唱片',icon:'🎵',patterns:['music_disc','record','disc_']},
+{id:'material',name:'材料',icon:'📎',patterns:['string','feather','bone','rotten_flesh','leather','slime_ball','egg','ghast_tear','blaze_rod','spider_eye','ender_pearl','ender_eye','slime','magma_cream','squid_ink','ink_sac','glow_ink','cactus_green','lapis','lapis_lazuli','redstone','redstone_dust','gold','gold_nugget','gold_ingot','iron','iron_nugget','iron_ingot','diamond','emerald','quartz','amethyst','calcite','nether_wart','nether_star','experience_bottle','phantom_membrane','allium','azure_bluet','dandelion','oxeye_daisy','pink_tulip','orange_tulip','white_tulip','yellow_tulip','blue_orchid','poppy','cornflower','lily_of_the_valley','wheat','beetroot','pumpkin','melon','spruce','birch','jungle','acacia','dark_oak','cherry','crimson','warped','bamboo','oak','azalea','moss','podzol','rooted_dirt','coarse_dirt','clay','clay_ball','nether_brick','copper','copper_ingot','copper_nugget','raw_gold','raw_iron','raw_copper','gold_block','iron_block','diamond_block','emerald_block','lapis_block','redstone_block','coal_block','nautilus_shell','heart_of_the_sea','prismarine','prismarine_shard','prismarine_crystals','pufferfish','cod','salmon','tropical_fish','kelp','dried_kelp','name_tag','recovery_compass','compass','clock','spyglass','echo_shard','disc_fragment','scrape','map','filled_map','empty_map','paper','book','writable_book','written_book','minecart','saddle','lead','snowball','leather_horse_armor','golden_horse_armor','diamond_horse_armor','iron_horse_armor','decorated_pot','moss_carpet','moss_block','sculk','sculk_vein','sculk_catalyst','sculk_shrieker','sculk_sensor','calibrated_sculk_sensor','goat_horn','tinted_glass','amethyst_block','amethyst_cluster','budding_amethyst','tinted','echo_shard','disc_fragment','goat_horn','tinted_glass','amethyst']},
+{id:'other',name:'其他',icon:'📦',patterns:['*']},
+];
+function findById(arr,id){for(var i=0;i<arr.length;i++){if(arr[i].id===id)return arr[i]}return{id:id,name:id}}
+function itemEnchantable(id){return id&&ENCHANTABLE_KWS.some(function(k){return id.toLowerCase().indexOf(k)>=0})}
+
+function renderNsFilters(container,namespaces,type){
+  container.innerHTML='';
+  var all=namespaces.reduce(function(s,n){return s+n.count},0);
+  var allBtn=document.createElement('span');
+  allBtn.className='pf-ns active';allBtn.textContent='全部('+all+')';
+  (function(btn){btn.addEventListener('click',function(){container.querySelectorAll('.pf-ns').forEach(function(b){b.classList.remove('active')});btn.classList.add('active');currentNsFilter='';renderPickerGrid(currentPickerItems,document.getElementById('picker-search').value.trim())})})(allBtn);
+  container.appendChild(allBtn);
+  namespaces.forEach(function(ns){
+    var btn=document.createElement('span');
+    btn.className='pf-ns';btn.textContent=(ns.name||ns.namespace)+'('+ns.count+')';
+    (function(btn,nsName){btn.addEventListener('click',function(){container.querySelectorAll('.pf-ns').forEach(function(b){b.classList.remove('active')});btn.classList.add('active');currentNsFilter=nsName;renderPickerGrid(currentPickerItems,document.getElementById('picker-search').value.trim())})})(btn,ns.namespace);
+    container.appendChild(btn);
+  });
+}
+
+// ============ 弹窗选择器 ============
+var pickerCallback=null,pickerType='';
+async function openPicker(type,items,title,icon,hint){
+  pickerType=type;
+  var overlay=document.getElementById('picker-overlay');
+  overlay.style.display='flex';
+  document.getElementById('picker-title').textContent=title;
+  document.getElementById('picker-hint').textContent=hint||'点击选择';
+  var search=document.getElementById('picker-search');
+  search.value='';
+  search.focus();
+  var filters=document.getElementById('picker-filters');
+  filters.innerHTML='';
+  currentNsFilter='';currentCatFilter='';
+  if(type==='items'){
+    if(!ITEMS_LOADED){
+      document.getElementById('picker-grid').innerHTML='<div class="picker-empty">⏳ 正在加载物品数据...</div>';
+      await ensureItemsLoaded();
+      items=ITEMS_LIST;
+    }else{items=ITEMS_LIST}
+    if(ITEM_CATEGORY_LIST.length){renderCatFilters(filters,ITEM_CATEGORY_LIST,'items')}
+  }else if(type==='entities'){
+    if(!ENTITIES_LOADED){
+      document.getElementById('picker-grid').innerHTML='<div class="picker-empty">⏳ 正在加载实体数据...</div>';
+      await ensureEntitiesLoaded();
+      items=ENTITIES_LIST;
+    }else{items=ENTITIES_LIST}
+    if(ENTITY_NAMESPACES.length){renderNsFilters(filters,ENTITY_NAMESPACES,'entities')}
+  }
+  currentPickerItems=items;
+  renderPickerGrid(items,'');
+}
+function renderCatFilters(container,categories,type){
+  container.innerHTML='';
+  var all=categories.reduce(function(s,c){return s+c.count},0);
+  var allBtn=document.createElement('span');
+  allBtn.className='pf-ns active';allBtn.innerHTML='📦 全部('+all+')';
+  (function(btn){btn.addEventListener('click',function(){container.querySelectorAll('.pf-ns').forEach(function(b){b.classList.remove('active')});btn.classList.add('active');currentCatFilter='';renderPickerGrid(currentPickerItems,document.getElementById('picker-search').value.trim())})})(allBtn);
+  container.appendChild(allBtn);
+  categories.forEach(function(cat){
+    var btn=document.createElement('span');
+    btn.className='pf-ns';btn.textContent=(cat.icon||'')+' '+cat.name+'('+cat.count+')';
+    (function(btn,catId){btn.addEventListener('click',function(){container.querySelectorAll('.pf-ns').forEach(function(b){b.classList.remove('active')});btn.classList.add('active');currentCatFilter=catId;renderPickerGrid(currentPickerItems,document.getElementById('picker-search').value.trim())})})(btn,cat.id);
+    container.appendChild(btn);
+  });
+}
+// === 卡片点击事件委托（避免逐个绑定）===
+document.getElementById('picker-grid').addEventListener('click',function(e){
+  var card=e.target.closest('.picker-card');
+  if(!card||!card.dataset.idx)return;
+  var idx=parseInt(card.dataset.idx,10);
+  var items=pickerItemsFiltered;
+  if(!items||!items[idx])return;
+  var cb=pickerCallback;
+  closePicker();
+  cb&&cb(items[idx]);
+});
+
+var pickerRenderBuf='';
+var pickerRenderNext=0;
+var pickerRendering=false;
+var pickerChunkSize=500;
+
+// 生成单个卡片 HTML
+function pickerCardHTML(it,idx){
+  if(pickerType==='entities'){
+    var ns=(it.id||'').split(':')[0];
+    var nsDisp=NS_NAME_MAP[ns]||ns;
+    return '<div class="picker-card" data-idx="'+idx+'"><div class="pc-name">'+esc(it.name||it.id||'')+'</div><div class="pc-id">'+esc(it.id||'')+'</div><div class="pc-cat">'+esc(nsDisp||'')+'</div></div>';
+  } else if(pickerType==='items'){
+    var catName=(it._catIcon||'')+' '+it._catName;
+    return '<div class="picker-card" data-idx="'+idx+'"><div class="pc-name">'+esc(it.name||it.id||'')+'</div><div class="pc-id">'+esc(it.id||'')+'</div><div class="pc-cat">'+esc(catName||'')+'</div></div>';
+  } else {
+    return '<div class="picker-card" data-idx="'+idx+'"><div class="pc-name">'+esc(it.name||it.id||'')+'</div><div class="pc-id">'+esc(it.id||'')+'</div></div>';
+  }
+}
+
+function flushPickerRender(){
+  var grid=document.getElementById('picker-grid');
+  var countEl=document.getElementById('picker-count');
+  if(pickerRenderBuf.length===0){pickerRendering=false;countEl.textContent=pickerItemsFiltered.length+' 项';return}
+  grid.innerHTML+=pickerRenderBuf;
+  pickerRenderBuf='';
+  if(pickerRenderNext>=pickerItemsFiltered.length){
+    pickerRendering=false;
+    countEl.textContent=pickerItemsFiltered.length+' 项';
+    return;
+  }
+  requestAnimationFrame(function(){
+    pickerRendering=true;
+    pickerRenderChunk();
+  });
+}
+
+function pickerRenderChunk(){
+  if(!pickerRendering)return;
+  var items=pickerItemsFiltered;
+  var end=Math.min(pickerRenderNext+pickerChunkSize,items.length);
+  pickerRenderBuf='';
+  for(var i=pickerRenderNext;i<end;i++){
+    pickerRenderBuf+=pickerCardHTML(items[i],i);
+  }
+  pickerRenderNext=end;
+  flushPickerRender();
+}
+
+async function renderPickerGrid(items,kw){
+  var grid=document.getElementById('picker-grid');
+  var countEl=document.getElementById('picker-count');
+  var lower=(kw||'').toLowerCase();
+  var filtered=items;
+  if(currentNsFilter){
+    filtered=filtered.filter(function(it){var ns=(it.id||'').split(':')[0];return ns===currentNsFilter});
+  }
+  if(currentCatFilter){
+    filtered=filtered.filter(function(it){return it._catId===currentCatFilter});
+  }
+  if(lower){
+    filtered=filtered.filter(function(it){return (it.name||'').toLowerCase().indexOf(lower)>=0||(it.id||'').toLowerCase().indexOf(lower)>=0||(it.cat||'').toLowerCase().indexOf(lower)>=0});
+  }
+  pickerItemsFiltered=filtered;
+  pickerRenderNext=0;
+  pickerRenderBuf='';
+  pickerRendering=false;
+  grid.style.paddingTop='0';
+  if(filtered.length===0){grid.innerHTML='<div class="picker-empty">未找到匹配项</div>';countEl.textContent='0 项';return}
+  countEl.textContent='加载中...';
+  grid.innerHTML='';
+  pickerRenderNext=0;
+  pickerRendering=true;
+  pickerRenderChunk();
+}
+function closePicker(){document.getElementById('picker-overlay').style.display='none';pickerCallback=null}
+document.getElementById('picker-overlay').addEventListener('click',function(e){if(e.target===this)closePicker()});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closePicker()});
+document.getElementById('picker-search').addEventListener('input',function(){renderPickerGrid(currentPickerItems,this.value.trim())});
+
+// ============ 选择回调 ============
+function onSelectItem(fieldId){
+  return function(item){
+    var btn=document.getElementById('gf-'+fieldId);
+    if(!btn)return;
+    btn.querySelector('.gp-name').textContent=item.name||item.id;
+    btn.querySelector('.gp-id').textContent=item.id||'';
+    btn.dataset.value=item.id;
+    if(item.name)btn.dataset.name=item.name;
+    generateCmd();
+  };
+}
+function onPickPlayer(fieldId){
+  return function(item){
+    var btn=document.getElementById('gf-'+fieldId);
+    if(!btn)return;
+    btn.querySelector('.gp-name').textContent=item.name||item.id;
+    btn.querySelector('.gp-id').textContent=item.id||'';
+    btn.dataset.value=item.id;
+    if(item.name)btn.dataset.name=item.name;
+    generateCmd();
+  };
+}
+
+// ============ 服务端信息 + 自动优化 ============
+var SERVER_INFO=null;
+var ITEMS_LOADED=false,ENTITIES_LOADED=false;
+var SERVER_TYPE='',OPTIMIZE_MODE='full';
+async function loadServerInfo(){
+  try{
+    var r=await fetch('/api/serverinfo');
+    var d=await r.json();
+    SERVER_INFO=d;
+    SERVER_TYPE=d.serverType||'unknown';
+    var svEl=document.getElementById('sv-info');
+    if(svEl){svEl.textContent=(d.serverType==='vanilla'?'🎮 原版':d.serverType==='modded'?'🧩 模组服':d.serverType==='plugin'?'🔌 插件服':'❓ 未知')+' · v'+(d.serverVersion||'?')+' · '+d.mode+'模式'}
+    if(d.optimizeMode==='auto'){
+      var total=(d.itemCount||0)+(d.entityCount||0);
+      if(total>5000){OPTIMIZE_MODE='lazy'}
+      else if(total>2000){OPTIMIZE_MODE='smart'}
+      else{OPTIMIZE_MODE='full'}
+    }
+    updateOptimizeHint();
+  }catch(e){document.getElementById('sv-info').textContent='❌ 检测失败'}
+}
+function updateOptimizeHint(){
+  var h=document.getElementById('opt-hint');
+  if(!h) return;
+  var itotal=SERVER_INFO?(SERVER_INFO.itemCount||0):0;
+  var etotal=SERVER_INFO?(SERVER_INFO.entityCount||0):0;
+  if(OPTIMIZE_MODE==='lazy'){
+    h.innerHTML='<span style="color:var(--accent2)">🚀 已优化：物品数据延迟加载（'+itotal+'物品/'+etotal+'实体）</span>';
+  }else if(OPTIMIZE_MODE==='smart'){
+    h.innerHTML='<span style="color:var(--warning)">⚡ 智能模式：部分数据预加载</span>';
+  }else{
+    h.innerHTML='<span style="color:var(--success)">✅ 已全量加载（数据量较小）</span>';
+  }
+}
+async function ensureItemsLoaded(){
+  if(ITEMS_LOADED) return ITEMS_LIST;
+  try{
+    var r=await fetch('/api/items');
+    var d=await r.json();
+    ITEMS_LIST=d.items||[];ENCHANT_LIST=d.enchantments||[];ITEM_NAMESPACES=d.namespaces||[];
+    computeItemCategories();
+    ITEMS_LOADED=true;
+    updateOptimizeHint();
+  }catch(e){ITEMS_LOADED=true}
+  return ITEMS_LIST;
+}
+async function ensureEntitiesLoaded(){
+  if(ENTITIES_LOADED) return ENTITIES_LIST;
+  try{
+    var r=await fetch('/api/entities');
+    var d=await r.json();
+    ENTITIES_LIST=d.entities||[];ENTITY_NAMESPACES=d.namespaces||[];
+    ENTITIES_LOADED=true;
+    updateOptimizeHint();
+  }catch(e){ENTITIES_LOADED=true}
+  return ENTITIES_LIST;
+}
+function refreshItemData(){
+  ITEMS_LOADED=false;ENTITIES_LOADED=false;
+  loadServerInfo();
+  if(OPTIMIZE_MODE==='full') loadData();
+  toast('物品/实体数据已重置，下次选择时重新加载','ok');
+}
+
+// ============ 加载数据（自动优化） ============
+async function loadData(){
+  try{
+    var r=await fetch('/api/status');
+    var d=await r.json();
+  }catch(e){}
+  NS_NAME_MAP={};
+  ITEM_NAMESPACES.concat(ENTITY_NAMESPACES).forEach(function(n){NS_NAME_MAP[n.namespace]=n.name||n.namespace});
+  refreshPlayers();
+  setInterval(refreshPlayers,15000);
+}
+async function initData(){
+  await loadServerInfo();
+  if(OPTIMIZE_MODE==='full'){
+    await ensureItemsLoaded();
+    await ensureEntitiesLoaded();
+  }
+  await loadData();
+}
+function nsDisplay(id){var ns=(id||'').split(':')[0];return NS_NAME_MAP[ns]||ns}
+function refreshPlayers(){fetch('/api/status').then(r=>r.json()).then(d=>{ONLINE_PLAYERS=d.players||[]}).catch(function(){});}
+initData();
+
+// ============ 指令大全 ============
+var cmdCat='';
+async function loadCmdCats(){try{var r=await fetch('/api/commands/cats');var d=await r.json();var cats=[''].concat(d.categories||[]);var box=document.getElementById('cmd-cat-tabs');box.innerHTML='';for(var i=0;i<cats.length;i++){var b=document.createElement('button');b.className='cat-tab'+(i===0?' active':'');b.textContent=(cats[i]?cats[i]:'📋 全部');(function(v,btn){btn.addEventListener('click',function(){cmdSelectCat(v,btn)})})(cats[i],b);box.appendChild(b)}}catch(e){}}
+function cmdSelectCat(v,el){cmdCat=v;var tabs=document.querySelectorAll('#cmd-cat-tabs .cat-tab');for(var i=0;i<tabs.length;i++)tabs[i].classList.remove('active');el.classList.add('active');loadCommands()}
+document.getElementById('cmd-search').addEventListener('input',function(){loadCommands()});
+async function loadCommands(){try{var kw=document.getElementById('cmd-search').value.trim();var r=await fetch('/api/commands',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({category:cmdCat,kw:kw})});var d=await r.json();document.getElementById('cmd-count').textContent='共 '+d.total+' 条指令';var grid=document.getElementById('cmd-grid');if(!d.commands.length){grid.innerHTML='<div class="picker-empty">未找到匹配指令</div>';return}grid.innerHTML='';for(var i=0;i<d.commands.length;i++){var c=d.commands[i];var card=document.createElement('div');card.className='glass quick-card cmd-card';card.title='点击复制';var icon=document.createElement('div');icon.className='cmd-icon';icon.textContent=catIcon(c.cat);card.appendChild(icon);var main=document.createElement('div');main.className='cmd-main';var cn=document.createElement('div');cn.className='cmd-cn';cn.textContent=c.cn;main.appendChild(cn);var cc=document.createElement('div');cc.className='quick-cmd';cc.textContent=c.cmd;main.appendChild(cc);if(c.desc){var cd=document.createElement('div');cd.className='quick-desc';cd.textContent=c.desc;main.appendChild(cd)}card.appendChild(main);var acts=document.createElement('div');acts.className='cmd-actions';var copy=document.createElement('span');copy.className='cmd-copy';copy.textContent='📋';acts.appendChild(copy);var cat=document.createElement('span');cat.className='cmd-cat';cat.textContent=c.cat||'';acts.appendChild(cat);card.appendChild(acts);card.addEventListener('click',(function(cmd){return function(){copyCmd(cmd)}})(c.cmd));grid.appendChild(card)}}catch(e){}}
+function catIcon(c){var m={'信息':'ℹ️','玩家':'👤','世界':'🌍','物品':'📦','实体':'👾','技术':'⚙️','管理':'🔧','模组':'🧩'};return m[c]||'📚'}
+async function copyCmd(cmd){try{await navigator.clipboard.writeText(cmd);toast('✅ 已复制: '+cmd,'ok')}catch(e){var ta=document.createElement('textarea');ta.value=cmd;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('✅ 已复制: '+cmd,'ok')}}
+function reloadCommands(){loadCmdCats();loadCommands();toast('已刷新指令列表','ok')}
+loadCmdCats();loadCommands();
+
+// ============ 指令生成器 ============
+var GEN_DEFS=[
+  {id:'tp',name:'传送',icon:'📍',fields:[{id:'player',label:'玩家',type:'players',def:'@p'},{id:'x',label:'X坐标',type:'number',def:'0',presets:['0','64','128','256','512']},{id:'y',label:'Y坐标',type:'number',def:'64',presets:['0','64','128','256']},{id:'z',label:'Z坐标',type:'number',def:'0',presets:['0','64','128','256','512']}]},
+  {id:'gamemode',name:'游戏模式',icon:'🎮',fields:[{id:'mode',label:'模式',type:'modes',def:'1'},{id:'player',label:'玩家',type:'players',def:'@p'}]},
+  {id:'give',name:'给物品',icon:'📦',fields:[{id:'player',label:'玩家',type:'players',def:'@p'},{id:'item',label:'物品',type:'items',def:'minecraft:diamond'},{id:'count',label:'数量',type:'number',def:'64',presets:['1','8','16','32','64']},{id:'enchant',label:'附魔类型',type:'enchant',def:''},{id:'level',label:'附魔等级',type:'number',def:'1',presets:['1','2','3','4','5','10']}]},
+  {id:'summon',name:'生成实体',icon:'👾',fields:[{id:'entity',label:'实体',type:'entities',def:'minecraft:zombie'},{id:'x',label:'X坐标',type:'number',def:'0',presets:['0','64','128','256','512']},{id:'y',label:'Y坐标',type:'number',def:'64',presets:['0','64','128','256']},{id:'z',label:'Z坐标',type:'number',def:'0',presets:['0','64','128','256','512']}]},
+  {id:'time',name:'设置时间',icon:'🌙',fields:[{id:'time',label:'时间',type:'time',def:'day'}]},
+  {id:'weather',name:'设置天气',icon:'🌤️',fields:[{id:'weather',label:'天气',type:'weather',def:'clear'}]},
+  {id:'say',name:'全服消息',icon:'💬',fields:[{id:'msg',label:'消息内容',type:'text',def:'你好，世界！'}]},
+  {id:'xp',name:'给经验',icon:'⭐',fields:[{id:'player',label:'玩家',type:'players',def:'@p'},{id:'amount',label:'经验值',type:'number',def:'10',presets:['1','5','10','50','100','500']}]},
+  {id:'effect',name:'给药水效果',icon:'🧪',fields:[{id:'player',label:'玩家',type:'players',def:'@p'},{id:'effect',label:'效果',type:'effects',def:'speed'},{id:'duration',label:'持续时间(秒)',type:'number',def:'30',presets:['5','10','30','60','300']},{id:'amplifier',label:'等级',type:'number',def:'1',presets:['1','2','3','5','10']}]},
+  {id:'kill',name:'杀死实体',icon:'💀',fields:[{id:'target',label:'目标',type:'text',def:'@e[type=!player]'}]},
+  {id:'particle',name:'粒子效果',icon:'✨',fields:[{id:'particle',label:'粒子',type:'particles',def:'flame'},{id:'x',label:'X坐标',type:'number',def:'0',presets:['0','64','128','256','512']},{id:'y',label:'Y坐标',type:'number',def:'64',presets:['0','64','128','256']},{id:'z',label:'Z坐标',type:'number',def:'0',presets:['0','64','128','256','512']},{id:'count',label:'数量',type:'number',def:'100',presets:['10','50','100','500','1000']}]},
+  {id:'ban',name:'封禁玩家',icon:'🚫',fields:[{id:'player',label:'玩家名',type:'text',def:''},{id:'reason',label:'原因',type:'text',def:'违规'}]},
+  {id:'op',name:'授权OP',icon:'👑',fields:[{id:'player',label:'玩家名',type:'text',def:''}]},
+  {id:'deop',name:'取消OP',icon:'🤴',fields:[{id:'player',label:'玩家名',type:'text',def:''}]}
+];
+var currentGen='';
+function genTypesHtml(){var h='';for(var i=0;i<GEN_DEFS.length;i++){var g=GEN_DEFS[i];h+='<div class="gen-type-btn" id="gt-'+g.id+'"><span class="gi">'+g.icon+'</span>'+g.name+'</div>'}return h}
+document.getElementById('gen-types').innerHTML=genTypesHtml();
+(function(){var box=document.getElementById('gen-types');var kids=box.querySelectorAll('.gen-type-btn');for(var i=0;i<kids.length;i++){(function(btn){btn.addEventListener('click',function(){selectGen(btn.id.slice(3))})})(kids[i])}})();
+function selectGen(id){currentGen=id;var btns=document.querySelectorAll('.gen-type-btn');for(var i=0;i<btns.length;i++)btns[i].classList.remove('active');document.getElementById('gt-'+id).classList.add('active');renderGenForm(id)}
+
+function renderGenForm(id){
+  var def=null;
+  for(var i=0;i<GEN_DEFS.length;i++){if(GEN_DEFS[i].id===id){def=GEN_DEFS[i];break}}
+  if(!def)return;
+  var area=document.getElementById('gen-form-area');
+  area.innerHTML='';
+  var form=document.createElement('div');
+  form.className='gen-form';
+  function makeField(field){
+    var row=document.createElement('div');
+    row.style.display='flex';row.style.flexDirection='column';row.style.gap='4px';
+    var label=document.createElement('span');
+    label.style.fontSize='11px';label.style.color='var(--text2)';
+    label.textContent=field.label+':';
+    row.appendChild(label);
+    if(field.type==='items'){
+      var defItem=findById(ITEMS_LIST,field.def);
+      var btn=document.createElement('div');
+      btn.className='gen-field-pick';btn.id='gf-'+field.id;btn.dataset.value=defItem.id;
+      if(defItem.name)btn.dataset.name=defItem.name;
+      btn.innerHTML='<span class="gp-icon">📦</span><span class="gp-name">'+esc(defItem.name||defItem.id)+'</span><span class="gp-id">'+esc(defItem.id)+'</span><span class="gp-arrow">▼</span>';
+      (function(fid){btn.addEventListener('click',function(){openPicker('items',ITEMS_LIST,'📦 选择物品','📦','点击选择物品');pickerCallback=onSelectItem(fid)})})(field.id);
+      row.appendChild(btn);
+    } else if(field.type==='players'){
+      var plList=PLAYER_SELECTORS.concat(ONLINE_PLAYERS.map(function(p){return{id:p,name:p,cat:'在线'}}));
+      var defPl=findById(plList,field.def);
+      var btn2=document.createElement('div');
+      btn2.className='gen-field-pick';btn2.id='gf-'+field.id;btn2.dataset.value=defPl.id;
+      if(defPl.name)btn2.dataset.name=defPl.name;
+      btn2.innerHTML='<span class="gp-icon">👤</span><span class="gp-name">'+esc(defPl.name||defPl.id)+'</span><span class="gp-id">'+esc(defPl.id)+'</span><span class="gp-arrow">▼</span>';
+      (function(fid,plList2){btn2.addEventListener('click',function(){openPicker('players',plList2,'👤 选择玩家','👤','点击选择玩家');pickerCallback=onPickPlayer(fid)})})(field.id,plList);
+      row.appendChild(btn2);
+    } else if(field.type==='entities'){
+      var defEnt=findById(ENTITIES_LIST,field.def);
+      var btn3=document.createElement('div');
+      btn3.className='gen-field-pick';btn3.id='gf-'+field.id;btn3.dataset.value=defEnt.id;
+      if(defEnt.name)btn3.dataset.name=defEnt.name;
+      btn3.innerHTML='<span class="gp-icon">👾</span><span class="gp-name">'+esc(defEnt.name||defEnt.id)+'</span><span class="gp-id">'+esc(defEnt.id)+'</span><span class="gp-arrow">▼</span>';
+      (function(fid){btn3.addEventListener('click',function(){openPicker('entities',ENTITIES_LIST,'👾 选择实体','👾','点击选择实体');pickerCallback=onSelectItem(fid)})})(field.id);
+      row.appendChild(btn3);
+    } else if(field.type==='enchant'){
+      var btn4=document.createElement('div');
+      btn4.className='gen-field-pick';btn4.id='gf-'+field.id;btn4.dataset.value=field.def||'';
+      btn4.innerHTML='<span class="gp-icon">✨</span><span class="gp-name">无附魔</span><span class="gp-id">选择附魔...</span><span class="gp-arrow">▼</span>';
+      (function(fid){btn4.addEventListener('click',function(){openEnchantPicker(fid)})})(field.id);
+      row.appendChild(btn4);
+    } else if(field.type==='weather'){
+      var defW=findById(WEATHERS,field.def);
+      var btn5=document.createElement('div');
+      btn5.className='gen-field-pick';btn5.id='gf-'+field.id;btn5.dataset.value=defW.id;
+      if(defW.name)btn5.dataset.name=defW.name;
+      var wIcon={clear:'🌤️',rain:'🌧️',thunder:'⛈️'}[defW.id]||'🌤️';
+      btn5.innerHTML='<span class="gp-icon">'+wIcon+'</span><span class="gp-name">'+esc(defW.name)+'</span><span class="gp-id">'+esc(defW.id)+'</span><span class="gp-arrow">▼</span>';
+      (function(fid){btn5.addEventListener('click',function(){openPicker('weather',WEATHERS,'🌤️ 选择天气','🌤️','点击选择天气');pickerCallback=onSelectSimple(fid)})})(field.id);
+      row.appendChild(btn5);
+    } else if(field.type==='modes'){
+      var defM=findById(GAMEMODES,field.def);
+      var btn6=document.createElement('div');
+      btn6.className='gen-field-pick';btn6.id='gf-'+field.id;btn6.dataset.value=defM.id;
+      if(defM.name)btn6.dataset.name=defM.name;
+      btn6.innerHTML='<span class="gp-icon">🎮</span><span class="gp-name">'+esc(defM.name)+'</span><span class="gp-id">'+esc(defM.id)+'</span><span class="gp-arrow">▼</span>';
+      (function(fid){btn6.addEventListener('click',function(){openPicker('modes',GAMEMODES,'🎮 选择游戏模式','🎮','点击选择游戏模式');pickerCallback=onSelectSimple(fid)})})(field.id);
+      row.appendChild(btn6);
+    } else if(field.type==='time'){
+      var timeOpts=[{id:'day',name:'白天',cat:'时段'},{id:'night',name:'夜晚',cat:'时段'},{id:'noon',name:'正午',cat:'时段'},{id:'12000',name:'正午(12000)',cat:'数值'},{id:'18000',name:'黄昏(18000)',cat:'数值'},{id:'24000',name:'午夜(24000)',cat:'数值'}];
+      var defT=findById(timeOpts,field.def);
+      var btn7=document.createElement('div');
+      btn7.className='gen-field-pick';btn7.id='gf-'+field.id;btn7.dataset.value=defT.id;
+      if(defT.name)btn7.dataset.name=defT.name;
+      var tIcon={day:'☀️',night:'🌙',noon:'🌅'}[defT.id]||'⏰';
+      btn7.innerHTML='<span class="gp-icon">'+tIcon+'</span><span class="gp-name">'+esc(defT.name)+'</span><span class="gp-id">'+esc(defT.id)+'</span><span class="gp-arrow">▼</span>';
+      (function(fid){btn7.addEventListener('click',function(){openPicker('time',timeOpts,'⏰ 设置时间','⏰','点击选择时间');pickerCallback=onSelectSimple(fid)})})(field.id);
+      row.appendChild(btn7);
+    } else if(field.type==='particles'){
+      var defP=findById(PARTICLES,field.def);
+      var btn8=document.createElement('div');
+      btn8.className='gen-field-pick';btn8.id='gf-'+field.id;btn8.dataset.value=defP.id;
+      if(defP.name)btn8.dataset.name=defP.name;
+      btn8.innerHTML='<span class="gp-icon">✨</span><span class="gp-name">'+esc(defP.name||defP.id)+'</span><span class="gp-id">'+esc(defP.id)+'</span><span class="gp-arrow">▼</span>';
+      (function(fid){btn8.addEventListener('click',function(){openPicker('particles',PARTICLES,'✨ 选择粒子效果','✨','点击选择粒子（支持搜索）');pickerCallback=onSelectSimple(fid)})})(field.id);
+      row.appendChild(btn8);
+    } else if(field.type==='effects'){
+      var defE=findById(EFFECTS,field.def);
+      var btn9=document.createElement('div');
+      btn9.className='gen-field-pick';btn9.id='gf-'+field.id;btn9.dataset.value=defE.id;
+      if(defE.name)btn9.dataset.name=defE.name;
+      btn9.innerHTML='<span class="gp-icon">🧪</span><span class="gp-name">'+esc(defE.name||defE.id)+'</span><span class="gp-id">'+esc(defE.id)+'</span><span class="gp-arrow">▼</span>';
+      (function(fid){btn9.addEventListener('click',function(){openPicker('effects',EFFECTS,'🧪 选择药水效果','🧪','点击选择药水效果（支持搜索）');pickerCallback=onSelectSimple(fid)})})(field.id);
+      row.appendChild(btn9);
+    } else if(field.type==='number'){
+      var presets=field.presets||['0','1','5','10'];
+      var presetsDiv=document.createElement('div');
+      presetsDiv.className='gen-num-presets';
+      for(var pi=0;pi<presets.length;pi++){
+        (function(pval){
+          var pbtn=document.createElement('span');
+          pbtn.className='gen-num-btn';pbtn.textContent=pval;
+          if(field.def===pval)pbtn.classList.add('active');
+          pbtn.addEventListener('click',function(ev){
+            ev.stopPropagation();
+            var group=pbtn.parentElement;
+            group.querySelectorAll('.gen-num-btn').forEach(function(b){b.classList.remove('active')});
+            pbtn.classList.add('active');
+            var inp=group.parentElement.querySelector('input[data-numval]');
+            if(inp){inp.value=pval;generateCmd()}
+          });
+          presetsDiv.appendChild(pbtn);
+        })(presets[pi]);
+      }
+      row.appendChild(presetsDiv);
+      var numInput=document.createElement('input');
+      numInput.type='number';numInput.id='gf-'+field.id;
+      numInput.className='gen-field-text gen-num-input';
+      numInput.dataset.numval='1';numInput.value=field.def||'0';
+      numInput.addEventListener('input',function(){
+        var group=this.parentElement.querySelector('.gen-num-presets');
+        if(group){var val=this.value;group.querySelectorAll('.gen-num-btn').forEach(function(b){b.classList.toggle('active',b.textContent===val)})}
+        generateCmd();
+      });
+      row.appendChild(numInput);
+    } else {
+      var inp=document.createElement('input');
+      inp.type=field.type;inp.id='gf-'+field.id;inp.className='gen-field-text';inp.value=field.def||'';
+      row.appendChild(inp);
+    }
+    return row;
+  }
+  for(var j=0;j<def.fields.length;j++){form.appendChild(makeField(def.fields[j]))}
+  area.appendChild(form);
+  var allInputs=area.querySelectorAll('input,select,.gen-field-pick');
+  for(var m=0;m<allInputs.length;m++){allInputs[m].addEventListener('change',generateCmd)}
+  generateCmd();
+}
+
+function onSelectSimple(fieldId){
+  return function(item){
+    var btn=document.getElementById('gf-'+fieldId);
+    if(!btn)return;
+    btn.querySelector('.gp-name').textContent=item.name||item.id;
+    btn.querySelector('.gp-id').textContent=item.id||'';
+    btn.dataset.value=item.id;
+    if(item.name)btn.dataset.name=item.name;
+    generateCmd();
+  };
+}
+
+function openEnchantPicker(fieldId){
+  var pickerItems=ENCHANT_LIST.map(function(e){return{id:e.id,name:e.name,cat:e.target}});
+  pickerItems.unshift({id:'',name:'无附魔',cat:'-'});
+  openPicker('enchant',pickerItems,'✨ 选择附魔类型','✨','点击选择附魔（支持搜索）');
+  pickerCallback=function(item){
+    var btn=document.getElementById('gf-'+fieldId);
+    if(!btn)return;
+    btn.querySelector('.gp-name').textContent=item.name||'无附魔';
+    btn.querySelector('.gp-id').textContent=item.id||'选择附魔...';
+    btn.dataset.value=item.id||'';
+    generateCmd();
+  };
+}
+
+var genDebounce=null;
+function generateCmd(){if(genDebounce)clearTimeout(genDebounce);genDebounce=setTimeout(doGenerateCmd,200)}
+async function doGenerateCmd(){
+  if(!currentGen)return;
+  var def=null;
+  for(var i=0;i<GEN_DEFS.length;i++){if(GEN_DEFS[i].id===currentGen){def=GEN_DEFS[i];break}}
+  if(!def)return;
+  var params={};
+  for(var j=0;j<def.fields.length;j++){
+    var f=def.fields[j];
+    var el=document.getElementById('gf-'+f.id);
+    if(el){
+      if(f.type==='number'){params[f.id]=el.value||'0'}
+      else{params[f.id]=el.dataset.value||el.value||''}
+    }
+  }
+  try{
+    var r=await fetch('/api/gen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:currentGen,params:params})});
+    var d=await r.json();
+    var box=document.getElementById('gen-result');
+    box.innerHTML='';
+    var span=document.createElement('span');
+    span.style.flex='1';span.textContent=d.command;
+    var btn=document.createElement('button');
+    btn.className='btn btn-sm';btn.textContent='📋 发送';
+    btn.addEventListener('click',function(){pasteAndSend(d.command)});
+    box.appendChild(span);box.appendChild(btn);
+  }catch(e){document.getElementById('gen-result').textContent='生成失败: '+e.message}
+}
+async function pasteAndSend(cmd){document.getElementById('cmd-in').value=cmd;sendCmd();tab('console')}
+
+function formatPlaytime(secs){
+  if(!secs&&secs!==0)return '--';
+  var h=Math.floor(secs/3600);
+  var m=Math.floor((secs%3600)/60);
+  var s=secs%60;
+  var parts=[];
+  if(h>0)parts.push(h+'h');
+  if(m>0||h>0)parts.push(m+'m');
+  parts.push(s+'s');
+  return parts.join(' ');
+}
+var psTimer=null;
+async function loadPlayerStats(){
+  try{
+    var r=await fetch('/api/player_stats');
+    var d=await r.json();
+    var players=d.players||{};
+    var online=d.online_count||0;
+    document.getElementById('ps-count').textContent='在线: '+online+'  ·  总计: '+(Object.keys(players).length)+' 人';
+    var tbody=document.getElementById('ps-body');
+    var names=Object.keys(players).sort(function(a,b){
+      return (players[b].total_playtime_seconds||0)-(players[a].total_playtime_seconds||0);
+    });
+    if(!names.length){
+      tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text2);padding:30px">暂无数据</td></tr>';
+      return;
+    }
+    tbody.innerHTML='';
+    for(var i=0;i<names.length;i++){
+      var p=players[names[i]];
+      var tr=document.createElement('tr');
+      // 玩家名
+      var td1=document.createElement('td');
+      td1.style.fontWeight='600';
+      td1.textContent=names[i];
+      tr.appendChild(td1);
+      // 状态
+      var td2=document.createElement('td');
+      td2.className=p.online?'status-online':'status-offline';
+      td2.textContent=p.online?'🟢 在线':'⚪ 离线';
+      tr.appendChild(td2);
+      // 总时长
+      var td3=document.createElement('td');
+      td3.textContent=formatPlaytime(p.total_playtime_seconds);
+      td3.style.fontFamily='var(--font-mono)';
+      tr.appendChild(td3);
+      // 会话次数
+      var td4=document.createElement('td');
+      td4.textContent=p.session_count||0;
+      tr.appendChild(td4);
+      // 上次上线
+      var td5=document.createElement('td');
+      td5.textContent=p.last_login||'--';
+      td5.style.fontSize='12px';
+      tr.appendChild(td5);
+      // 上次下线
+      var td6=document.createElement('td');
+      td6.textContent=p.last_logout||'--';
+      td6.style.fontSize='12px';
+      tr.appendChild(td6);
+      tbody.appendChild(tr);
+    }
+  }catch(e){
+    document.getElementById('ps-body').innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--danger);padding:30px">加载失败: '+e.message+'</td></tr>';
+  }
+}
+// 切换到 tab 时加载对应数据
+var origTab=tab;
+tab=function(name){
+  origTab(name);
+  if(name==='dashboard'){
+    loadPlayerStats();
+    if(!psTimer)psTimer=setInterval(loadPlayerStats,10000);
+  }else{
+    if(psTimer){clearInterval(psTimer);psTimer=null}
+  }
+  if(name==='config') loadConfig();
+};
+// 页面加载后加载玩家统计
+loadPlayerStats();
+
+// ========== 配置管理 ==========
+var cfgRaw=null,cfgDefs=null,panelCfg=null;
+async function loadConfig(){
+  var body=document.getElementById('cfg-body');
+  body.innerHTML='';
+  try{
+    var r=await fetch('/api/config');
+    var d=await r.json();
+    cfgRaw=d.config;
+    cfgDefs=d.definitions||[];
+    renderGameConfig();
+  }catch(e){
+    body.innerHTML='<div style="text-align:center;color:var(--danger);padding:30px">游戏配置加载失败: '+e.message+'</div>';
+  }
+  try{
+    var r2=await fetch('/api/panel_config');
+    var d2=await r2.json();
+    panelCfg=d2;
+    renderPanelConfig();
+  }catch(e){}
+}
+// 端口检测
+var _portTimers={};
+async function checkPort(port,noteId){
+  if(_portTimers[noteId]) clearTimeout(_portTimers[noteId]);
+  _portTimers[noteId]=setTimeout(async function(){
+    try{
+      var r=await fetch('/api/port/check?port='+encodeURIComponent(port));
+      var d=await r.json();
+      var note=document.getElementById(noteId);
+      if(note){
+        note.textContent=d.note||'';
+        note.className='cfg-note '+(d.level||'info');
+      }
+    }catch(e){}
+  },300);
+}
+
+var _passTimer=null;
+async function checkPass(pwd){
+  if(_passTimer) clearTimeout(_passTimer);
+  _passTimer=setTimeout(async function(){
+    try{
+      if(!pwd||pwd===panelCfg.rcon_password){
+        var note=document.getElementById('pc-rcon-pass-note');
+        if(note){note.textContent='当前密码';note.className='cfg-note info'}
+        return;
+      }
+      var r=await fetch('/api/pass/check?pwd='+encodeURIComponent(pwd));
+      var d=await r.json();
+      var note=document.getElementById('pc-rcon-pass-note');
+      if(note && d.note){
+        note.textContent=d.note;
+        note.className='cfg-note '+(d.level||'info');
+      }
+    }catch(e){}
+  },400);
+}
+
+var _pathTimers={};
+async function checkPath(pth,noteId){
+  if(_pathTimers[noteId]) clearTimeout(_pathTimers[noteId]);
+  _pathTimers[noteId]=setTimeout(async function(){
+    try{
+      var r=await fetch('/api/path/check?path='+encodeURIComponent(pth));
+      var d=await r.json();
+      var note=document.getElementById(noteId);
+      if(note){
+        note.textContent=d.note||'';
+        note.className='cfg-note '+(d.level||'info');
+      }
+    }catch(e){}
+  },300);
+}
+function renderPanelConfig(){
+  var body=document.getElementById('cfg-body');
+  var existing=body.querySelector('#cfg-panel-section');
+  if(existing) existing.remove();
+  var el=document.createElement('div');
+  el.id='cfg-panel-section';
+  el.className='cfg-category';
+  var nc=panelCfg||{};
+  el.innerHTML='<div class="cfg-cat-title" onclick="togglePanelSection()"><span>🎛️ 面板设置</span><span class="arrow" id="pc-section-arrow">▼</span></div><div id="pc-section-body" class="cfg-grid">'+
+    '<div class="cfg-item"><div class="cfg-item-label"><span class="cfg-item-name">面板标题</span><span class="cfg-item-key">server.name</span></div><input class="cfg-text" id="pc-name" type="text" value="'+(nc.name||'').replace(/"/g,'&quot;')+'"></div>'+
+    '<div class="cfg-item"><div class="cfg-item-label"><span class="cfg-item-name">面板端口</span><span class="cfg-item-key">server.port</span></div><div style="display:flex;flex-direction:column;gap:2px;width:100%"><input class="cfg-num" id="pc-port" type="number" value="'+(nc.port||0)+'" min="1" max="65535" style="width:140px"><span class="cfg-note" id="pc-port-note"></span></div></div>'+
+    '<div class="cfg-item"><div class="cfg-item-label"><span class="cfg-item-name">监听地址</span><span class="cfg-item-key">server.host</span></div><input class="cfg-text" id="pc-host" type="text" value="'+(nc.host||'0.0.0.0')+'"></div>'+
+    '<div class="cfg-item"><div class="cfg-item-label"><span class="cfg-item-name">连接模式</span><span class="cfg-item-key">mode</span></div><select class="cfg-select" id="pc-mode">'+
+      '<option value="auto"'+(nc.mode==='auto'?' selected':'')+'>自动</option>'+
+      '<option value="rcon"'+(nc.mode==='rcon'?' selected':'')+'>RCON</option>'+
+      '<option value="pipe"'+(nc.mode==='pipe'?' selected':'')+'>管道</option>'+
+    '</select></div>'+
+    '<div class="cfg-item"><div class="cfg-item-label"><span class="cfg-item-name">RCON地址</span><span class="cfg-item-key">rcon.host</span></div><input class="cfg-text" id="pc-rcon-host" type="text" value="'+(nc.rcon_host||'127.0.0.1')+'"></div>'+
+    '<div class="cfg-item"><div class="cfg-item-label"><span class="cfg-item-name">RCON端口</span><span class="cfg-item-key">rcon.port</span></div><div style="display:flex;flex-direction:column;gap:2px;width:100%"><input class="cfg-num" id="pc-rcon-port" type="number" value="'+(nc.rcon_port||25575)+'" min="1" max="65535"><span class="cfg-note" id="pc-rcon-port-note"></span></div></div>'+
+    '<div class="cfg-item"><div class="cfg-item-label"><span class="cfg-item-name">RCON密码</span><span class="cfg-item-key">rcon.password</span></div><div style="display:flex;flex-direction:column;gap:2px;width:100%"><div class="cfg-inline-input-wrap"><input class="cfg-text" id="pc-rcon-pass" type="password" value="'+(nc.rcon_password||'')+'" style="flex:1"><button class="cfg-eye-btn" onclick="togglePassVis()" title="显示/隐藏密码"><span id="pc-pass-eye">👁️</span></button></div><span class="cfg-note" id="pc-rcon-pass-note">当前密码</span></div></div>'+
+    '<div class="cfg-item"><div class="cfg-item-label"><span class="cfg-item-name">服务器目录</span><span class="cfg-item-key">server_dir</span></div><div style="display:flex;flex-direction:column;gap:2px;width:100%"><input class="cfg-text" id="pc-sdir" type="text" value="'+(nc.server_dir||'')+'" style="max-width:280px"><span class="cfg-note" id="pc-sdir-note"></span></div></div>'+
+    '</div>'+
+    '<div class="cfg-subtitle" onclick="toggleAccountSection()"><span>🔐 账号安全</span><span class="arrow" id="acc-section-arrow">▼</span></div>'+
+    '<div id="acc-section-body" class="cfg-grid" style="margin-bottom:10px">'+
+      '<div class="cfg-item"><div class="cfg-item-label"><span class="cfg-item-name">用户名</span><span class="cfg-item-key">auth.username</span></div><div class="cfg-inline-flex"><input class="cfg-text" id="acc-inline-user" type="text" maxlength="32"><button class="cfg-inline-btn" onclick="doChangeUsernameInline()">修改</button></div></div>'+
+      '<div class="cfg-item"><div class="cfg-item-label"><span class="cfg-item-name">当前密码</span><span class="cfg-item-key">auth.old_password</span></div><div class="cfg-inline-input-wrap"><input class="cfg-text" id="acc-inline-old-pwd" type="password" placeholder="输入当前密码"><button class="cfg-eye-btn" onclick="toggleInlinePass(\x27acc-inline-old-pwd\x27,\x27acc-inline-old-eye\x27)" title="\u663e\u793a/\u9690\u85cf"><span id="acc-inline-old-eye">👁️</span></button></div></div>'+
+      '<div class="cfg-item"><div class="cfg-item-label"><span class="cfg-item-name">新密码</span><span class="cfg-item-key">auth.new_password</span></div><div class="cfg-inline-flex"><div class="cfg-inline-input-wrap"><input class="cfg-text" id="acc-inline-new-pwd" type="password" placeholder="至少3位"><button class="cfg-eye-btn" onclick="toggleInlinePass(\x27acc-inline-new-pwd\x27,\x27acc-inline-new-eye\x27)" title="\u663e\u793a/\u9690\u85cf"><span id="acc-inline-new-eye">👁️</span></button></div><button class="cfg-inline-btn" onclick="doChangePasswordInline()">修改</button></div></div>'+
+      '<div id="acc-inline-msg" class="cfg-note" style="grid-column:1/-1;color:#ff6b6b;display:none;font-size:12px;text-align:center;margin-top:4px"></div>'+
+    '</div>';
+  body.insertBefore(el, body.firstChild);
+  var portInput=document.getElementById('pc-port');
+  if(portInput){
+    portInput.addEventListener('input',function(){checkPort(this.value,'pc-port-note')});
+    portInput.addEventListener('blur',function(){checkPort(this.value,'pc-port-note')});
+    setTimeout(function(){checkPort(portInput.value,'pc-port-note')},100);
+  }
+  var rcportInput=document.getElementById('pc-rcon-port');
+  if(rcportInput){
+    rcportInput.addEventListener('input',function(){checkPort(this.value,'pc-rcon-port-note')});
+    rcportInput.addEventListener('blur',function(){checkPort(this.value,'pc-rcon-port-note')});
+    setTimeout(function(){checkPort(rcportInput.value,'pc-rcon-port-note')},100);
+  }
+  var passInput=document.getElementById('pc-rcon-pass');
+  if(passInput){
+    passInput.addEventListener('input',function(){checkPass(this.value)});
+    passInput.addEventListener('blur',function(){checkPass(this.value)});
+  }
+  var sdirInput=document.getElementById('pc-sdir');
+  if(sdirInput){
+    sdirInput.addEventListener('input',function(){checkPath(this.value,'pc-sdir-note')});
+    sdirInput.addEventListener('blur',function(){checkPath(this.value,'pc-sdir-note')});
+    setTimeout(function(){checkPath(sdirInput.value,'pc-sdir-note')},100);
+  }
+  // 面板设置默认折叠
+  var pcBody=document.getElementById('pc-section-body');
+  if(pcBody) pcBody.style.display='none';
+  var pcTitle=el.querySelector('.cfg-cat-title');
+  if(pcTitle) pcTitle.classList.add('collapsed');
+  // 账号安全默认折叠
+  var accBody=document.getElementById('acc-section-body');
+  if(accBody) accBody.style.display='none';
+  var accSubtitle=el.querySelector('.cfg-subtitle');
+  if(accSubtitle) accSubtitle.classList.add('collapsed');
+}
+function renderGameConfig(){
+  var body=document.getElementById('cfg-body');
+  var old=body.querySelector('#cfg-game-section');
+  if(old) old.remove();
+  var el=document.createElement('div');
+  el.id='cfg-game-section';
+  el.innerHTML='<div id="game-cfg-content"></div>';
+  var inner=el.querySelector('#game-cfg-content');
+  var currentCat='';
+  for(var i=0;i<cfgDefs.length;i++){
+    var item=cfgDefs[i];
+    var key=item[0],cn=item[1],type=item[2],hint=item[3]||'';
+    if(!cn){
+      currentCat=key;
+      var catEl=document.createElement('div');
+      catEl.className='cfg-category';
+      catEl.innerHTML='<div class="cfg-cat-title">'+key+'<span class="arrow">▼</span></div><div class="cfg-grid" id="cfg-grid-'+key+'"></div>';
+      inner.appendChild(catEl);
+      continue;
+    }
+    var grid=inner.querySelector('#cfg-grid-'+currentCat);
+    if(!grid) continue;
+    var itemEl=document.createElement('div');
+    itemEl.className='cfg-item';
+    itemEl.id='cfg-item-'+key;
+    var label='<div class="cfg-item-label"><span class="cfg-item-name">'+cn+'</span><span class="cfg-item-key">'+key+(hint?' — '+hint:'')+'</span></div>';
+    var ctrl='';
+    if(type==='switch'){
+      var on=cfgRaw[key]==='true';
+      ctrl='<div class="cfg-switch-wrap"><div class="cfg-switch'+(on?' on':'')+'"><span class="cfg-switch-knob"></span></div></div>';
+    }else if(type==='number'){
+      ctrl='<input class="cfg-num" type="number" value="'+(cfgRaw[key]||'0')+'" step="1" min="0">';
+    }else if(type==='select'){
+      var opts=hint.split(',');
+      ctrl='<select class="cfg-select">';
+      for(var j=0;j<opts.length;j++){
+        var parts=opts[j].split('=');
+        var optKey=parts[0],optLabel=parts[1]||parts[0];
+        var sel=(cfgRaw[key]||'')===optKey?'selected':'';
+        ctrl+='<option value="'+optKey+'" '+sel+'>'+optLabel+'</option>';
+      }
+      ctrl+='</select>';
+    }else if(type==='text'){
+      ctrl='<input class="cfg-text" type="text" value="'+(cfgRaw[key]||'').replace(/"/g,'&quot;')+'">';
+    }
+    itemEl.innerHTML=label+ctrl;
+    grid.appendChild(itemEl);
+    // mark changed on input
+    var inp=itemEl.querySelector('input,select');
+    if(inp){
+      inp.oninput=function(){itemEl.classList.add('changed');document.getElementById('cfg-status').textContent='已修改'};
+    }
+    // switch click
+    if(type==='switch'){
+      itemEl.addEventListener('click',function(ev){
+        var sw=ev.target.closest('.cfg-switch');
+        if(!sw) return;
+        sw.classList.toggle('on');
+        document.getElementById('cfg-status').textContent='已修改';
+      });
+    }
+  }
+  body.appendChild(el);
+  // 三大游戏分类默认折叠，点击展开
+  document.querySelectorAll('#game-cfg-content .cfg-cat-title').forEach(function(title){
+    var g=title.parentElement.querySelector('.cfg-grid');
+    if(!g) return;
+    title.classList.add('collapsed');
+    g.style.display='none';
+    title.addEventListener('click',function(){
+      var isCollapsed=title.classList.toggle('collapsed');
+      g.style.display=isCollapsed?'none':'';
+    });
+  });
+}
+async function saveConfig(){
+  var changes={};
+  var items=document.querySelectorAll('.cfg-item');
+  var count=0;
+  for(var i=0;i<items.length;i++){
+    var item=items[i];
+    var key=item.id.replace('cfg-item-','');
+    var def=cfgDefs.filter(function(d){return d[0]===key&&d[1]});
+    if(def.length===0) continue;
+    var type=def[0][2];
+    var newVal='';
+    if(type==='switch'){
+      var sw=item.querySelector('.cfg-switch');
+      newVal=sw&&sw.classList.contains('on')?'true':'false';
+    }else{
+      var el=item.querySelector('input,select');
+      if(el) newVal=el.value;
+    }
+    if(newVal!==cfgRaw[key]){
+      changes[key]=newVal;
+      count++;
+    }
+  }
+  if(count===0){toast('没有变更');return}
+  var r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({changes:changes})});
+  var d=await r.json();
+  toast(d.output||'保存成功');
+  if(d.output.startsWith('✅')){
+    items.forEach(function(item){item.classList.remove('changed')});
+    document.getElementById('cfg-status').textContent='已保存';
+    await loadConfig();
+  }
+}
+async function savePanelConfig(){
+  var changes={};
+  var nm=document.getElementById('pc-name').value;
+  if(nm!==panelCfg.name) changes.name=nm;
+  var port=parseInt(document.getElementById('pc-port').value);
+  if(port!==panelCfg.port) changes.port=port;
+  var host=document.getElementById('pc-host').value;
+  if(host!==panelCfg.host) changes.host=host;
+  var mode=document.getElementById('pc-mode').value;
+  if(mode!==panelCfg.mode) changes.mode=mode;
+  var rch=document.getElementById('pc-rcon-host').value;
+  if(rch!==panelCfg.rcon_host) changes.rcon_host=rch;
+  var rcport=parseInt(document.getElementById('pc-rcon-port').value);
+  if(rcport!==panelCfg.rcon_port) changes.rcon_port=rcport;
+  var rcp=document.getElementById('pc-rcon-pass').value;
+  if(rcp!==panelCfg.rcon_password) changes.rcon_password=rcp;
+  var sdir=document.getElementById('pc-sdir').value;
+  if(sdir!==panelCfg.server_dir) changes.server_dir=sdir;
+  if(Object.keys(changes).length===0){toast('没有变更');return}
+  var r=await fetch('/api/panel_config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({changes:changes})});
+  var d=await r.json();
+  toast(d.output||'保存成功');
+  await loadConfig();
+}
+function filterCfgItems(q){
+  q=q.trim().toLowerCase();
+  document.querySelectorAll('#game-cfg-content .cfg-item').forEach(function(item){
+    item.style.display=(!q||item.textContent.toLowerCase().indexOf(q)>=0)?'':'none';
+  });
+}
+function resetConfig(){
+  document.querySelectorAll('.cfg-item').forEach(function(it){it.classList.remove('changed')});
+  document.getElementById('cfg-status').textContent='未修改';
+  document.querySelectorAll('#game-cfg-content .cfg-item').forEach(function(it){
+    var key=it.id.replace('cfg-item-','');
+    var def=cfgDefs.filter(function(d){return d[0]===key&&d[1]});
+    if(!def.length) return;
+    if(def[0][2]==='switch'){
+      var sw=it.querySelector('.cfg-switch');
+      if(sw) sw.classList.toggle('on',cfgRaw[def[0][0]]==='true');
+    }else{
+      var inp=it.querySelector('input');
+      if(inp) inp.value=cfgRaw[def[0][0]]||'';
+    }
+  });
+}
+
+</script>
+<script>
+
+// 底部版权链接
+var _footer=document.createElement('footer');
+_footer.style.cssText='position:fixed;bottom:12px;left:0;right:0;text-align:center;font-size:11px;color:#555;z-index:9999;pointer-events:none';
+_footer.innerHTML='<a href="https://github.com/xingyiqaq/MCpanel" target="_blank" style="color:#6c5ce7;text-decoration:none;pointer-events:auto">© xingyiqaq · MCpanel v1.0</a>';
+document.body.appendChild(_footer);
+</script>
+</body>
+</html>

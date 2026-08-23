@@ -451,7 +451,7 @@ function unescapeUrl(s){try{return decodeURIComponent(s)}catch(e){return s}}
 function toast(msg,t){var e=document.getElementById('toast');e.textContent=msg;e.className='toast show';if(t==='ok'){e.style.borderLeft='3px solid #00d2d3'}else if(t==='err'){e.style.borderLeft='3px solid #ff4757'}else{e.style.borderLeft='3px solid #6c5ce7'}setTimeout(function(){e.classList.remove('show')},3000)}
 var logTimer=null,curTab='dashboard';
 function tab(name){curTab=name;var tabs=document.querySelectorAll('.tab');for(var i=0;i<tabs.length;i++)tabs[i].classList.remove('active');var btns=document.querySelectorAll('.nav button');for(var j=0;j<btns.length;j++)btns[j].classList.remove('active');var target=document.getElementById('tab-'+name);if(target)target.classList.add('active');var btn=document.querySelector('.nav button[data-tab="'+name+'"]');if(btn)btn.classList.add('active');if(name==='console'){startConsoleLog();if(!logTimer){logTimer=setInterval(pollLogs,5000);pollLogs()}}else{if(logTimer){clearInterval(logTimer);logTimer=null}}}
-var wpList=null;var wallpaperIdx=0;
+var wpList=window.wpList||[];var wallpaperIdx=0;
 async function loadWallpaper(){try{if(!wpList){var r=await fetch('/api/wallpapers');var d=await r.json();wpList=d.wallpapers||[]}if(wpList.length){wallpaperIdx=wallpaperIdx%wpList.length;document.getElementById('bg-wallpaper').src='/wp/'+wallpaperIdx;wallpaperIdx++}}catch(e){}}
 setInterval(loadWallpaper,30000);loadWallpaper();
 async function loadStatus(){try{var r=await fetch('/api/status');var d=await r.json();document.getElementById('v-tps').textContent=d.tps!=null?d.tps.toFixed(1):'--';document.getElementById('v-players').textContent=d.playerCount;document.getElementById('v-mem').textContent=d.memoryUsed?(parseInt(d.memoryUsed)/1024/1024).toFixed(1)+' GB':'--';document.getElementById('v-time').textContent=d.timestamp;var pl=document.getElementById('pl-list');if(d.players&&d.players.length){pl.innerHTML='';for(var i=0;i<d.players.length;i++){var sp=document.createElement('span');sp.className='player-tag';sp.textContent='👤 '+d.players[i];pl.appendChild(sp)}}else{pl.innerHTML='<span class="no-players">暂无玩家</span>'}var pi=document.getElementById('proc-info');if(d.pids&&d.pids.length){pi.innerHTML='';for(var k=0;k<d.pids.length;k++){var sp2=document.createElement('span');sp2.style.color='var(--success)';sp2.textContent='PID: '+d.pids[k]+'  ';pi.appendChild(sp2)}}else{pi.innerHTML='<span style="color:var(--danger)">未找到进程</span>'}}catch(e){}}
@@ -466,7 +466,7 @@ function clearConsole(){document.getElementById('console-out').innerHTML='';_las
 async function doAction(a){var lbl={save:'保存世界',reload:'重载配置',stop:'安全停止',kill:'强制终止'};if(a==='stop'||a==='kill'){if(!confirm('确定要'+lbl[a]+'吗？'))return}try{var r=await fetch('/api/control',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:a})});var d=await r.json();toast(d.output,d.output.indexOf('✅')===0?'ok':'err')}catch(e){toast(e.message,'err')}}
 
 // ============ 数据缓存 ============
-var ITEMS_LIST=[],ENCHANT_LIST=[],ONLINE_PLAYERS=[],ENTITIES_LIST=[];
+var ITEMS_LIST=window.ITEMS_LIST||[],ENCHANT_LIST=window.ENCHANT_LIST||[],ONLINE_PLAYERS=window.ONLINE_PLAYERS||[],ENTITIES_LIST=window.ENTITIES_LIST||[];
 var ITEM_NAMESPACES=[],ENTITY_NAMESPACES=[];
 var ENCHANTABLE_KWS=['sword','axe','pickaxe','shovel','hoe','bow','crossbow','trident','helmet','chestplate','leggings','boots','elytra','fishing_rod','shield'];
 var WEATHERS=[{id:'clear',name:'晴天',cat:'天气'},{id:'rain',name:'雨天',cat:'天气'},{id:'thunder',name:'雷暴',cat:'天气'}];

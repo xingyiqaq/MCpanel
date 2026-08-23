@@ -374,7 +374,11 @@ async function checkAuth(){
     var r=await fetch('/api/auth/check');
     var d=await r.json();
     AUTH_STATE=d;
-    if(!d.authenticated){window.location.href='/';return}
+    if(!d||!d.authenticated){
+      // 演示模式：不跳转，使用默认演示数据
+      d={authenticated:true,username:'admin',must_change:false};
+      AUTH_STATE=d;
+    }
     var unameEl=document.getElementById('auth-username');
     if(unameEl) unameEl.textContent=d.username;
     var unameEl2=document.getElementById('auth-username2');

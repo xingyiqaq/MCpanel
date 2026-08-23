@@ -49,6 +49,14 @@ mode: "auto"             # auto / rcon / pipe
 
 > **RCON 自动检测**：`rcon.password` 留空或注释，面板启动时会自动从 `server.properties` 读取密码；如果两边都没有，自动生成随机密码写入两边。
 
+## 🌐 在线演示
+
+无需安装即可体验面板全部功能，数据均为模拟数据，仅供功能展示：
+
+👉 **[https://xingyiqaq.github.io/MCpanel/](https://xingyiqaq.github.io/MCpanel/)**
+
+演示模式默认已登录（用户名 `admin`），无需认证。
+
 ### 3. 一键启动（自动安装依赖）
 
 ```bash

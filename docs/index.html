@@ -339,6 +339,33 @@ main{flex:1;overflow-y:auto;padding:20px;scrollbar-width:thin}
 </div>
 <script src="mock.js"></script>
 <script>
+// 如果 mock.js 未加载成功（网络问题/CDN缓存等），提供全局 fallback
+// 确保即使 fetch 失败也不会导致页面崩溃或跳转
+if(!window.AUTH_STATE || !window.AUTH_STATE.authenticated){
+  window.AUTH_STATE={authenticated:true,username:'admin',must_change:false};
+}
+if(!window.ONLINE_PLAYERS) window.ONLINE_PLAYERS=['xingyi','Steve','Alex'];
+if(!window.ITEMS_LIST) window.ITEMS_LIST=[];
+if(!window.ENTITIES_LIST) window.ENTITIES_LIST=[];
+if(!window.ENCHANT_LIST) window.ENCHANT_LIST=[];
+if(!window.GAME_CONFIG) window.GAME_CONFIG={};
+if(!window.GAME_CONFIG_DEFS) window.GAME_CONFIG_DEFS=[];
+if(!window.PANEL_CONFIG) window.PANEL_CONFIG={host:'0.0.0.0',port:19888,name:'MC 服务端管理面板'};
+if(!window.PLAYER_STATS) window.PLAYER_STATS={players:{},online_count:0};
+if(!window.MOCK_COMMANDS) window.MOCK_COMMANDS={commands:[],categories:[''],total:0};
+
+// 全局 fetch fallback：当 mock.js 未拦截时返回演示数据
+var _origFetch=window.fetch;
+window.fetch=function(url,opts){
+  var p=_origFetch.apply(this,arguments);
+  return p.catch(function(){
+    var mockData={ok:true,status:200,headers:new Map([['content-type','application/json']]),
+      json:function(){return Promise.resolve({error:'demo'})}};
+    return Promise.resolve(mockData);
+  });
+};
+</script>
+<script>
 
 // ===== 认证系统 =====
 var AUTH_STATE=null;
@@ -355,12 +382,20 @@ async function checkAuth(){
     var accInlineUser=document.getElementById('acc-inline-user');
     if(accInlineUser) accInlineUser.value=d.username;
     if(d.must_change){showMustChangeModal()}
-  }catch(e){window.location.href='/'}
+  }catch(e){
+    // 演示模式：即使 API 不可达也不跳转，自动使用演示数据
+    AUTH_STATE={authenticated:true,username:'admin',must_change:false};
+    var unameEl=document.getElementById('auth-username');
+    if(unameEl) unameEl.textContent='admin';
+    var unameEl2=document.getElementById('auth-username2');
+    if(unameEl2) unameEl2.textContent='admin';
+    var accInlineUser=document.getElementById('acc-inline-user');
+    if(accInlineUser) accInlineUser.value='admin';
+  }
 }
 checkAuth();
 function logout(){
-  if(!confirm('确定要退出登录吗？'))return;
-  fetch('/api/auth/logout').then(function(){window.location.href='/'});
+  toast('演示模式，无法退出登录');
 }
 async function changePassword(oldPwd,newPwd){
   if(!newPwd||newPwd.length<3){toast('新密码长度至少3位','err');return}

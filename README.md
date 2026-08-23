@@ -32,11 +32,20 @@
 
 ### 1. 下载必要文件
 
+**方案 A：快速启动（推荐，最少文件）**
+
 ```bash
 mkdir -p mcpanel/static && cd mcpanel
 wget https://raw.githubusercontent.com/xingyiqaq/MCpanel/main/panel.py
 wget https://raw.githubusercontent.com/xingyiqaq/MCpanel/main/config.yaml
 wget -O static/index.html https://raw.githubusercontent.com/xingyiqaq/MCpanel/main/static/index.html
+```
+
+**方案 B：完整启动（支持一键启动面板+服务端）**
+
+```bash
+mkdir -p mcpanel && cd mcpanel
+git clone --depth 1 https://github.com/xingyiqaq/MCpanel.git .
 ```
 
 ### 2. 配置
@@ -61,22 +70,55 @@ mode: "auto"             # auto / rcon / pipe
 
 ### 3. 启动
 
+**方案 A（快速启动）：**
+
 ```bash
 python3 panel.py
 ```
 
 浏览器访问 `http://<服务器IP>:19888`。默认账号 `admin` / `admin`，首次登录须修改密码。
 
-> 自动完成：安装依赖 → 扫描物品 → 检测配置 → 启动面板。
+自动完成：安装依赖 → 扫描物品 → 检测配置 → 启动面板。
+
+**方案 B（完整启动，含一键脚本）：**
+
+```bash
+bash start.sh                    # 只开面板（后台运行）
+bash start.sh --server           # 面板 + MC 服务器
+bash start.sh --stop             # 关闭面板
+```
+
+首次启动会自动完成以下步骤：
+1. **检测 Python** — 若未安装，自动通过 apt/yum/dnf/pacman 安装
+2. **检测 PyYAML** — 优先从 `setup/wheels/` 离线安装，否则 pip 安装
+3. **自动写入 server_dir** — 自动检测服务器根目录
+4. **扫描 jar 包** — 自动提取物品/实体/附魔中文名称
+5. **启动面板** — 后台运行，打印局域网地址
+6. **启动服务器**（`--server`）— 自动检测启动脚本，支持崩溃自动重启
 
 ## 📂 项目结构
 
+**最小部署（方案 A）：**
 ```
-MCpanel/
-├── panel.py              # 主程序：Web 服务器 + RCON/管道通信
-├── config.yaml           # 配置文件
-├── static/
-│   └── index.html        # 主界面（单文件，HTML+CSS+JS）
+mcpanel/
+├── panel.py              # 主程序
+├── config.yaml           # 配置
+└── static/
+    └── index.html        # 界面
+```
+
+**完整部署（方案 B）：**
+```
+mcpanel/
+├── panel.py              # 主程序
+├── discover.py           # 物品/实体扫描
+├── start.sh              # 一键启动脚本
+├── config.yaml           # 配置
+├── static/index.html     # 界面
+├── setup/                # 离线依赖安装
+│   ├── install_deps.sh
+│   └── wheels/
+├── wallpapers/           # 壁纸
 └── README.md
 ```
 

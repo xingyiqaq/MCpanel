@@ -1,0 +1,6 @@
+# 构建时忽略的数据目录
+mc-data/
+panel-data/
+cache/
+*.pyc
+__pycache__/

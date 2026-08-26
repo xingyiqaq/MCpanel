@@ -1,149 +1,46 @@
-# 🎮 MCpanel — Minecraft 服务器 Web 管理面板
+# MC 管理面板 — Docker 镜像
 
-> 一个开源的 Minecraft 服务器 Web 管理面板，支持全量物品/实体中文显示，适用于原版 + 模组服务器。
+[![Docker](https://img.shields.io/badge/Docker-19888-green)](https://hub.docker.com/)
 
-## 🌐 在线演示
-
-无需安装即可体验全部功能，数据均为模拟数据，仅供功能展示：
-
-👉 **[https://xingyiqaq.github.io/MCpanel/](https://xingyiqaq.github.io/MCpanel/)**
-
-演示模式默认已登录（用户名 `admin`），无需认证。
-
-## ✨ 功能一览
-
-| 功能 | 说明 |
-|------|------|
-| 🏠 状态概览 | 玩家数、TPS、内存、运行时间 |
-| 🖥️ RCON 控制台 | 实时发送命令、查看输出 |
-| ⚡ 快捷指令 | 一键保存/白名单/天气等常用操作 |
-| 🧩 指令生成器 | 图形化生成 `give`/`summon`/`enchant` 等复杂指令 |
-| 📋 实时日志 | 自动刷新服务器日志 |
-| 👤 玩家统计 | 在线时长排行 |
-| 📦 全量物品选择 | 支持中文分类、搜索，自动加载模组物品 |
-| 👾 全量实体选择 | 按命名空间分类，支持搜索 |
-| 🎨 壁纸背景 | 随机壁纸 + 动态粒子效果 |
-| 🔐 登录认证 | 首次强制修改密码，可自定义用户名/密码 |
-| ⚙️ 游戏配置 | 在线编辑 `server.properties` |
-| 🎛️ 面板设置 | 面板端口/标题/RCON/模式等配置，修改立即生效 |
-| 🔑 RCON 自动检测 | 启动时自动从 `server.properties` 检测/生成 RCON 密码 |
+基于 [mc-web-generic](https://github.com/MC-Web-Team/mc-web-generic) 的 MC 服务器 Web 管理面板。
 
 ## 🚀 快速开始
 
-### 1. 下载必要文件
-
-**方案 A：快速启动（推荐，最少文件）**
-
 ```bash
-mkdir -p mcpanel/static && cd mcpanel
-wget https://raw.githubusercontent.com/xingyiqaq/MCpanel/main/panel.py
-wget https://raw.githubusercontent.com/xingyiqaq/MCpanel/main/config.yaml
-wget -O static/index.html https://raw.githubusercontent.com/xingyiqaq/MCpanel/main/static/index.html
+# 1. 构建镜像
+docker build -t mc-panel .
+
+# 2. 运行面板
+docker run -d \
+  --name mc-panel \
+  --restart unless-stopped \
+  -p 19888:19888 \
+  -v /path/to/mc/data:/mc-data \
+  -v /path/to/panel/config:/panel-data \
+  mc-panel:latest
+
+# 3. 访问面板
+# 浏览器打开: http://<IP>:19888
+# 默认账号: xingyi / (首次启动需修改密码)
 ```
 
-**方案 B：完整启动（支持一键启动面板+服务端）**
+## ⚙️ 配置
 
-```bash
-mkdir -p mcpanel && cd mcpanel
-git clone --depth 1 https://github.com/xingyiqaq/MCpanel.git .
-```
+### 挂载目录
 
-### 2. 配置
+| 路径 | 说明 |
+|------|------|
+| `/mc-data` | MC 服务器数据目录（需与 mc-server 的 `/data` 挂载到同一路径） |
+| `/panel-data` | 面板配置和缓存（首次启动会自动从镜像复制默认配置） |
 
-编辑 `config.yaml`（首次可跳过，自动检测）：
+### 环境变量
 
-```yaml
-server:
-  host: "0.0.0.0"       # 监听地址
-  port: 19888            # 面板端口
-  name: "我的世界服务器"   # 面板标题
+面板通过 RCON 协议连接 MC 服务器（默认 `127.0.0.1:25575`），需确保面板容器与 MC 容器在同一 Docker network 中。
 
-rcon:
-  host: "127.0.0.1"
-  port: 25575
-  # password: "留空则自动检测"
+## 🔐 安全
 
-mode: "auto"             # auto / rcon / pipe
-```
+首次启动后请立即修改默认密码（`config.yaml` 中的 `auth.password_hash`）。
 
-> **RCON 自动检测**：`rcon.password` 留空或注释，面板启动时会自动从 `server.properties` 读取密码；如果两边都没有，自动生成随机密码写入两边。
+## License
 
-### 3. 启动
-
-**方案 A（快速启动）：**
-
-```bash
-python3 panel.py
-```
-
-浏览器访问 `http://<服务器IP>:19888`。默认账号 `admin` / `admin`，首次登录须修改密码。
-
-自动完成：安装依赖 → 扫描物品 → 检测配置 → 启动面板。
-
-**方案 B（完整启动，含一键脚本）：**
-
-```bash
-bash start.sh                    # 只开面板（后台运行）
-bash start.sh --server           # 面板 + MC 服务器
-bash start.sh --stop             # 关闭面板
-```
-
-首次启动会自动完成以下步骤：
-1. **检测 Python** — 若未安装，自动通过 apt/yum/dnf/pacman 安装
-2. **检测 PyYAML** — 优先从 `setup/wheels/` 离线安装，否则 pip 安装
-3. **自动写入 server_dir** — 自动检测服务器根目录
-4. **扫描 jar 包** — 自动提取物品/实体/附魔中文名称
-5. **启动面板** — 后台运行，打印局域网地址
-6. **启动服务器**（`--server`）— 自动检测启动脚本，支持崩溃自动重启
-
-## 📂 项目结构
-
-**最小部署（方案 A）：**
-```
-mcpanel/
-├── panel.py              # 主程序
-├── config.yaml           # 配置
-└── static/
-    └── index.html        # 界面
-```
-
-**完整部署（方案 B）：**
-```
-mcpanel/
-├── panel.py              # 主程序
-├── discover.py           # 物品/实体扫描
-├── start.sh              # 一键启动脚本
-├── config.yaml           # 配置
-├── static/index.html     # 界面
-├── setup/                # 离线依赖安装
-│   ├── install_deps.sh
-│   └── wheels/
-├── wallpapers/           # 壁纸
-└── README.md
-```
-
-## 🔄 通信模式
-
-| 模式 | 说明 | 适用场景 |
-|------|------|----------|
-| **auto**（推荐） | 优先 RCON，失败自动回退管道 | 通用，最省心 |
-| **rcon** | 通过 RCON 协议双向通信 | RCON 已开启的服务器 |
-| **pipe** | 通过 stdin 写入命令，日志读取输出 | 无 RCON 权限的服务器 |
-
-## 🎛️ 面板设置说明
-
-在 **配置** tab 下可配置面板自身参数（修改后点击保存，重启生效）：
-
-- **面板标题 / 端口 / 监听地址** — 基本显示设置
-- **连接模式** — auto / rcon / pipe
-- **RCON 地址 / 端口 / 密码** — 实时检测端口占用和密码一致性
-- **服务器目录** — 可在线修改（路径检测）
-
-## 📄 License
-
-本项目采用 **非商用许可**。
-未经允许，不得用于任何商业用途。如需商用授权，请联系作者。
-
----
-
-[![GitHub stars](https://img.shields.io/github/stars/xingyiqaq/MCpanel)](https://github.com/xingyiqaq/MCpanel)
+MIT

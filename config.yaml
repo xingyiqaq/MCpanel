@@ -1,0 +1,18 @@
+auth:
+  must_change: false
+  password_hash: 03f407f41df786af8dee4114f159a448013ed2e0b8566c2727dc89ec158ab5ca19c7183c74131d8bbc927e3a7eaebe46
+  username: xingyi
+java_process_keyword: unix_args.txt
+lang_zh_file: cache/lang_zh_all.json
+log_path: logs/latest.log
+mode: rcon
+rcon:
+  host: 127.0.0.1
+  password: '1'
+  port: 25575
+server:
+  host: 0.0.0.0
+  name: 我的世界服务器
+  port: 19888
+server_dir: /mc-data
+wallpaper_dir: wallpapers

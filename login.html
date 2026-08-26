@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MC 服务器面板 - 登录</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#fff;overflow:hidden;margin:0}
+body{background:#0a0a12;display:flex;align-items:center;justify-content:center}
+#bg-wallpaper{position:fixed;top:0;left:0;width:100%;height:100%;object-fit:cover;opacity:0.55;transition:opacity 1.5s ease;z-index:0}
+#bg-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,rgba(10,10,20,0.55) 0%,rgba(15,10,30,0.4) 50%,rgba(10,15,25,0.65) 100%);z-index:1}
+#bg-anim{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:2}
+#bg-anim span{position:absolute;display:block;width:12px;height:12px;background:rgba(108,92,231,0.3);animation:float 15s infinite;border-radius:50%}
+#bg-anim span:nth-child(1){top:10%;left:15%;animation-delay:0s;width:8px;height:8px;background:rgba(108,92,231,0.25)}
+#bg-anim span:nth-child(2){top:70%;left:20%;animation-delay:2s;width:16px;height:16px}
+#bg-anim span:nth-child(3){top:30%;left:80%;animation-delay:4s;width:6px;height:6px;background:rgba(108,92,231,0.4)}
+#bg-anim span:nth-child(4){top:80%;left:70%;animation-delay:6s;width:10px;height:10px;background:rgba(108,92,231,0.28)}
+#bg-anim span:nth-child(5){top:20%;left:50%;animation-delay:8s;width:14px;height:14px;background:rgba(108,92,231,0.18)}
+#bg-anim span:nth-child(6){top:60%;left:40%;animation-delay:10s;width:8px;height:8px}
+@keyframes float{0%,100%{transform:translateY(0) rotate(0deg);opacity:0.6}50%{transform:translateY(-80px) rotate(180deg);opacity:0.2}}
+.login-container{position:relative;z-index:3;display:flex;flex-direction:column;align-items:center;gap:16px;width:100%;max-width:420px;padding:0 20px}
+.login-box{width:100%;background:rgba(15,15,25,0.7);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:48px 40px;box-shadow:0 8px 48px rgba(0,0,0,0.6),0 0 0 1px rgba(255,255,255,0.03) inset;transition:transform .3s}
+.login-box:hover{transform:translateY(-2px)}
+.login-icon{text-align:center;font-size:48px;margin-bottom:12px}
+.login-box h1{font-size:22px;text-align:center;margin-bottom:4px;font-weight:600;letter-spacing:0.5px}
+.login-box .subtitle{text-align:center;color:#888;font-size:13px;margin-bottom:32px}
+.login-box label{display:block;font-size:13px;color:#aaa;margin-bottom:6px;font-weight:500}
+.login-box input{width:100%;padding:13px 16px;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#fff;font-size:15px;margin-bottom:20px;outline:none;transition:all .25s}
+.login-box input:focus{border-color:#6c5ce7;box-shadow:0 0 0 3px rgba(108,92,231,0.15)}
+.login-box input::placeholder{color:#666}
+.login-box button{width:100%;padding:15px;background:linear-gradient(135deg,#6c5ce7,#a855f7);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;transition:all .25s;letter-spacing:1px}
+.login-box button:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(108,92,231,0.4)}
+.login-box button:disabled{opacity:0.6;cursor:not-allowed;transform:none;box-shadow:none}
+.login-msg{font-size:13px;text-align:center;margin-bottom:16px;padding:10px 12px;border-radius:8px;display:none;line-height:1.5}
+.login-msg.error{color:#ff8a80;background:rgba(255,107,107,0.12);border:1px solid rgba(255,107,107,0.2)}
+.login-msg.info{color:#ffd93d;background:rgba(255,217,61,0.1);border:1px solid rgba(255,217,61,0.2)}
+.login-msg.ok{color:#69f0ae;background:rgba(105,240,174,0.1);border:1px solid rgba(105,240,174,0.2)}
+.login-footer{text-align:center;margin-top:20px;font-size:12px;color:#777;line-height:1.8}
+.login-footer a{color:#6c5ce7;text-decoration:none}
+.login-footer a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<img id="bg-wallpaper" src="">
+<div id="bg-overlay"></div>
+<div id="bg-anim"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+<div class="login-container">
+<div class="login-box">
+<div class="login-icon">🎮</div>
+<h1>MC 服务器面板</h1>
+<p class="subtitle">登录后即可管理您的服务器</p>
+<div id="loginMsg" class="login-msg"></div>
+<form id="loginForm">
+<label>用户名</label>
+<input type="text" id="loginUser" placeholder="请输入用户名" autocomplete="username" required maxlength="32">
+<label>密码</label>
+<input type="password" id="loginPass" placeholder="请输入密码" autocomplete="current-password" required>
+<button type="submit" id="loginBtn">登 录</button>
+</form>
+</div>
+<div class="login-footer">
+<span>MC 服务器管理面板 v1.0</span>
+</div>
+</div>
+<script>
+// 加载壁纸
+(async function(){
+  try{
+    var r=await fetch('/api/wallpapers');
+    var d=await r.json();
+    var list=d.wallpapers||[];
+    if(list.length){
+      var idx=Math.floor(Math.random()*list.length);
+      document.getElementById('bg-wallpaper').src='/wp/'+idx;
+    }
+  }catch(e){}
+})();
+
+const msgEl = document.getElementById('loginMsg');
+const form = document.getElementById('loginForm');
+const btn = document.getElementById('loginBtn');
+
+function showMsg(text, type) {
+    msgEl.textContent = text;
+    msgEl.className = 'login-msg ' + type;
+    msgEl.style.display = 'block';
+}
+function hideMsg() { msgEl.style.display = 'none'; }
+
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideMsg();
+    const user = document.getElementById('loginUser').value.trim();
+    const pass = document.getElementById('loginPass').value;
+    if (!user || !pass) { showMsg('请填写用户名和密码', 'error'); return; }
+    btn.textContent = '登录中...';
+    btn.disabled = true;
+    try {
+        const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            credentials: 'same-origin',
+            body: JSON.stringify({username: user, password: pass})
+        });
+        const data = await res.json();
+        if (res.ok && data.ok) {
+            if (data.must_change) {
+                window.location.href = '/?must_change=true';
+            } else {
+                window.location.href = '/';
+            }
+        } else {
+            showMsg(data.message || '用户名或密码错误', 'error');
+        }
+    } catch(err) {
+        showMsg('网络错误，请检查连接后重试', 'error');
+    }
+    btn.textContent = '登 录';
+    btn.disabled = false;
+});
+
+document.getElementById('loginPass').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') form.requestSubmit();
+});
+</script>
+</body>
+</html>
